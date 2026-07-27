@@ -61,6 +61,31 @@ function montarEmbed(rascunho) {
   return embed;
 }
 
+function montarBotaoDoLink(rascunho) {
+  if (!rascunho.link) return null;
+
+  let label = "Abrir link";
+  let emoji = "🔗";
+
+  if (rascunho.provedor === "youtube") {
+    label = "Assistir no YouTube";
+    emoji = "▶️";
+  }
+
+  if (rascunho.provedor === "spotify") {
+    label = "Ouvir no Spotify";
+    emoji = "🎧";
+  }
+
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel(label)
+      .setEmoji(emoji)
+      .setStyle(ButtonStyle.Link)
+      .setURL(rascunho.link)
+  );
+}
+
 function urlValida(valor) {
   if (!valor) return true;
 
@@ -163,6 +188,7 @@ async function criarPrevia(interaction, tipoSelecionado) {
     descricao: interaction.fields.getTextInputValue("descricao").trim(),
     link,
     imagem: imagemManual || previewDoLink?.thumbnailUrl || "",
+    provedor: previewDoLink?.provedor || null,
   };
 
   rascunhos.set(id, rascunho);
@@ -180,13 +206,22 @@ async function criarPrevia(interaction, tipoSelecionado) {
       .setStyle(ButtonStyle.Secondary)
   );
 
+  const componentes = [];
+  const botaoDoLink = montarBotaoDoLink(rascunho);
+
+  if (botaoDoLink) {
+    componentes.push(botaoDoLink);
+  }
+
+  componentes.push(botoes);
+
   return interaction.reply({
     content:
       previewDoLink
         ? `✅ Link do ${previewDoLink.provedor === "spotify" ? "Spotify" : "YouTube"} reconhecido. Confira a prévia e clique em **Publicar**.`
         : "Confira a prévia abaixo. Ao clicar em **Publicar**, ela será enviada imediatamente para o canal de anúncios.",
     embeds: [montarEmbed(rascunho)],
-    components: [botoes],
+    components: componentes,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -213,8 +248,10 @@ async function publicar(interaction, id) {
       throw new Error("O canal de anúncios não foi encontrado.");
     }
 
+    const botaoDoLink = montarBotaoDoLink(rascunho);
     const mensagem = await canal.send({
       embeds: [montarEmbed(rascunho)],
+      components: botaoDoLink ? [botaoDoLink] : [],
     });
 
     rascunhos.delete(id);
