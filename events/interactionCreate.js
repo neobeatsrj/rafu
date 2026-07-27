@@ -223,11 +223,21 @@ async function criarPrevia(interaction, tipoSelecionado) {
       : null,
   ].filter(Boolean);
 
+  const tituloDigitado = interaction.fields
+    .getTextInputValue("titulo")
+    .trim();
+  const previewPrincipal = previewDoLink || previewDoLinkSecundario;
+  const emojiDoTipo = tipo.tituloPadrao.split(" ")[0];
+  const tituloFinal =
+    tituloDigitado === tipo.tituloPadrao && previewPrincipal?.titulo
+      ? `${emojiDoTipo} ${previewPrincipal.titulo}`
+      : tituloDigitado;
+
   const id = randomUUID();
   const rascunho = {
     autorId: interaction.user.id,
     cor: tipo.cor,
-    titulo: interaction.fields.getTextInputValue("titulo").trim(),
+    titulo: tituloFinal,
     descricao: interaction.fields.getTextInputValue("descricao").trim(),
     links,
     imagem:
