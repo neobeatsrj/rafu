@@ -25,6 +25,33 @@ function identificarProvedor(link) {
   return null;
 }
 
+function extrairVideoIdDoYouTube(link) {
+  try {
+    const url = new URL(link);
+    const hostname = url.hostname.replace(/^www\./, "");
+
+    if (hostname === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (hostname === "youtube.com" || hostname.endsWith(".youtube.com")) {
+      if (url.pathname === "/watch") {
+        return url.searchParams.get("v");
+      }
+
+      const partes = url.pathname.split("/").filter(Boolean);
+
+      if (["shorts", "embed", "live"].includes(partes[0])) {
+        return partes[1] || null;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 async function buscarPreviewDoLink(link) {
   const provedor = identificarProvedor(link);
 
@@ -44,11 +71,17 @@ async function buscarPreviewDoLink(link) {
       timeout: 10_000,
     });
 
+    const videoId =
+      provedor === "youtube" ? extrairVideoIdDoYouTube(link) : null;
+
     return {
       provedor,
       titulo: resposta.data.title || null,
       autor: resposta.data.author_name || null,
-      thumbnailUrl: resposta.data.thumbnail_url || null,
+      thumbnailUrl:
+        videoId
+          ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+          : resposta.data.thumbnail_url || null,
     };
   } catch (erro) {
     console.warn(
