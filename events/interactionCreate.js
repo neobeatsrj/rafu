@@ -48,8 +48,7 @@ function montarEmbed(rascunho) {
   const embed = new EmbedBuilder()
     .setColor(rascunho.cor)
     .setTitle(rascunho.titulo)
-    .setDescription(rascunho.descricao)
-    .setTimestamp();
+    .setDescription(rascunho.descricao);
 
   if (rascunho.link) {
     embed.setURL(rascunho.link);
