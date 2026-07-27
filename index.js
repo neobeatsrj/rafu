@@ -11,9 +11,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
 
-const REGRAS_CHANNEL_ID = "1529886257038098512";
 const LANCAMENTOS_CHANNEL_ID = "1530310948831760384";
-
 const TWITCH_CHANNEL = process.env.TWITCH_CHANNEL;
 
 let twitchAccessToken = null;
@@ -73,8 +71,9 @@ async function verificarTwitch() {
     const estaAoVivo = Boolean(live);
 
     /*
-      Na primeira consulta, o bot apenas descobre o estado atual.
-      Isso evita anunciar uma live antiga toda vez que a Rafu reiniciar.
+      Na primeira verificação, a Rafu apenas identifica
+      se a live já estava online antes de ela iniciar.
+      Assim, ela não anuncia novamente após um restart.
     */
     if (primeiraVerificacao) {
       estavaAoVivo = estaAoVivo;
@@ -89,6 +88,10 @@ async function verificarTwitch() {
       return;
     }
 
+    /*
+      Envia o anúncio somente quando o estado muda
+      de offline para online.
+    */
     if (estaAoVivo && !estavaAoVivo) {
       const canal = await client.channels.fetch(LANCAMENTOS_CHANNEL_ID);
 
@@ -102,35 +105,17 @@ async function verificarTwitch() {
 
       const embed = new EmbedBuilder()
         .setColor(0x9146ff)
-        .setTitle("🔴 Neo Beats está ao vivo!")
+        .setTitle("🟣 Neo Beats está AO VIVO!")
         .setURL(`https://www.twitch.tv/${TWITCH_CHANNEL}`)
-        .setDescription(
-          `**${live.title || "A live começou!"}**\n\nClique no título para assistir agora.`
-        )
-        .addFields(
-          {
-            name: "Categoria",
-            value: live.game_name || "Sem categoria",
-            inline: true,
-          },
-          {
-            name: "Espectadores",
-            value: String(live.viewer_count ?? 0),
-            inline: true,
-          }
-        )
+        .setDescription(`**${live.title || "A live começou!"}**`)
         .setImage(`${thumbnail}?t=${Date.now()}`)
-        .setFooter({
-          text: "Rafu • Assistente oficial do Neo Beats",
-        })
         .setTimestamp();
 
       await canal.send({
-        content: "@everyone",
         embeds: [embed],
       });
 
-      console.log("🔴 Aviso de live enviado ao Discord!");
+      console.log("🟣 Aviso de live enviado ao Discord!");
     }
 
     if (!estaAoVivo && estavaAoVivo) {
@@ -155,7 +140,7 @@ client.once("clientReady", async () => {
 
     await verificarTwitch();
 
-    // Verifica a cada 5 minutos.
+    // Verifica a Twitch a cada 5 minutos.
     setInterval(verificarTwitch, 5 * 60_000);
   } catch (erro) {
     console.error(
