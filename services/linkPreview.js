@@ -57,6 +57,8 @@ async function buscarPreviewDoLink(link) {
 
   if (!provedor) return null;
 
+  let dados = {};
+
   try {
     const endpoint =
       provedor === "spotify"
@@ -71,26 +73,43 @@ async function buscarPreviewDoLink(link) {
       timeout: 10_000,
     });
 
-    const videoId =
-      provedor === "youtube" ? extrairVideoIdDoYouTube(link) : null;
-
-    return {
-      provedor,
-      titulo: resposta.data.title || null,
-      autor: resposta.data.author_name || null,
-      thumbnailUrl:
-        videoId
-          ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-          : resposta.data.thumbnail_url || null,
-    };
+    dados = resposta.data;
   } catch (erro) {
     console.warn(
       `⚠️ Não foi possível carregar a prévia do ${provedor}:`,
       erro.response?.data || erro.message
     );
-
-    return null;
   }
+
+  let thumbnailUrl = dados.thumbnail_url || null;
+
+  if (provedor === "youtube") {
+    const videoId = extrairVideoIdDoYouTube(link);
+
+    if (videoId) {
+      const thumbnailRetangular = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+
+      try {
+        await axios.head(thumbnailRetangular, { timeout: 5_000 });
+        thumbnailUrl = thumbnailRetangular;
+      } catch {
+        /*
+          Nem todo vídeo tem maxresdefault. Nesse caso, preservamos
+          a thumbnail oficial retornada pelo YouTube oEmbed.
+        */
+        thumbnailUrl =
+          thumbnailUrl ||
+          `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+      }
+    }
+  }
+
+  return {
+    provedor,
+    titulo: dados.title || null,
+    autor: dados.author_name || null,
+    thumbnailUrl,
+  };
 }
 
 module.exports = { buscarPreviewDoLink };
