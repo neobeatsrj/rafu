@@ -23,7 +23,7 @@ async function registrarEntrada(member) {
       .addFields(
         {
           name: "Usuário",
-          value: `${member} — \`${member.user.tag}\` — ID: \`${member.id}\``,
+          value: `${member} — ID: \`${member.id}\``,
         },
         {
           name: "Conta criada",
