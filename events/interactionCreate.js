@@ -56,7 +56,7 @@ function montarEmbed(rascunho) {
   }
 
   if (rascunho.imagem) {
-    embed.setThumbnail(rascunho.imagem);
+    embed.setImage(rascunho.imagem);
   }
 
   return embed;
