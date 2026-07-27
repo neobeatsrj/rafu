@@ -92,6 +92,26 @@ function montarBotoesDosLinks(rascunho) {
   return linha;
 }
 
+function montarBotoesDeControle(id) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`anunciar:publicar:${id}`)
+      .setLabel("Publicar")
+      .setEmoji("✅")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`anunciar:editar:${id}`)
+      .setLabel("Editar")
+      .setEmoji("✏️")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`anunciar:cancelar:${id}`)
+      .setLabel("Cancelar")
+      .setEmoji("❌")
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
 function urlValida(valor) {
   if (!valor) return true;
 
@@ -249,19 +269,6 @@ async function criarPrevia(interaction, tipoSelecionado) {
 
   rascunhos.set(id, rascunho);
 
-  const botoes = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`anunciar:publicar:${id}`)
-      .setLabel("Publicar")
-      .setEmoji("✅")
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`anunciar:cancelar:${id}`)
-      .setLabel("Cancelar")
-      .setEmoji("❌")
-      .setStyle(ButtonStyle.Secondary)
-  );
-
   const componentes = [];
   const botoesDosLinks = montarBotoesDosLinks(rascunho);
 
@@ -269,7 +276,7 @@ async function criarPrevia(interaction, tipoSelecionado) {
     componentes.push(botoesDosLinks);
   }
 
-  componentes.push(botoes);
+  componentes.push(montarBotoesDeControle(id));
 
   return interaction.reply({
     content:
@@ -279,6 +286,77 @@ async function criarPrevia(interaction, tipoSelecionado) {
     embeds: [montarEmbed(rascunho)],
     components: componentes,
     flags: MessageFlags.Ephemeral,
+  });
+}
+
+async function abrirEdicao(interaction, id) {
+  const rascunho = rascunhos.get(id);
+
+  if (!rascunho || rascunho.autorId !== interaction.user.id) {
+    return interaction.update({
+      content: "❌ Esta prévia expirou. Use `/anunciar` para criar outra.",
+      embeds: [],
+      components: [],
+    });
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId(`anunciar:salvarEdicao:${id}`)
+    .setTitle("Editar anúncio");
+
+  const titulo = new TextInputBuilder()
+    .setCustomId("titulo")
+    .setLabel("Título do anúncio")
+    .setStyle(TextInputStyle.Short)
+    .setValue(rascunho.titulo)
+    .setMaxLength(256)
+    .setRequired(true);
+
+  const descricao = new TextInputBuilder()
+    .setCustomId("descricao")
+    .setLabel("Descrição")
+    .setStyle(TextInputStyle.Paragraph)
+    .setValue(rascunho.descricao)
+    .setMaxLength(4000)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(titulo),
+    new ActionRowBuilder().addComponents(descricao)
+  );
+
+  return interaction.showModal(modal);
+}
+
+async function salvarEdicao(interaction, id) {
+  const rascunho = rascunhos.get(id);
+
+  if (!rascunho || rascunho.autorId !== interaction.user.id) {
+    return interaction.reply({
+      content: "❌ Esta prévia expirou. Use `/anunciar` para criar outra.",
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  rascunho.titulo = interaction.fields.getTextInputValue("titulo").trim();
+  rascunho.descricao = interaction.fields
+    .getTextInputValue("descricao")
+    .trim();
+
+  const componentes = [];
+  const botoesDosLinks = montarBotoesDosLinks(rascunho);
+
+  if (botoesDosLinks) {
+    componentes.push(botoesDosLinks);
+  }
+
+  componentes.push(montarBotoesDeControle(id));
+
+  return interaction.update({
+    content:
+      "✏️ Prévia atualizada. Confira novamente antes de publicar.",
+    embeds: [montarEmbed(rascunho)],
+    components: componentes,
   });
 }
 
@@ -351,10 +429,24 @@ module.exports = async function interactionCreate(interaction) {
     return criarPrevia(interaction, tipoSelecionado);
   }
 
+  if (
+    interaction.isModalSubmit() &&
+    interaction.customId.startsWith("anunciar:salvarEdicao:")
+  ) {
+    if (!podeAnunciar(interaction)) return responderSemPermissao(interaction);
+
+    const id = interaction.customId.split(":")[2];
+    return salvarEdicao(interaction, id);
+  }
+
   if (interaction.isButton() && interaction.customId.startsWith("anunciar:")) {
     if (!podeAnunciar(interaction)) return responderSemPermissao(interaction);
 
     const [, acao, id] = interaction.customId.split(":");
+
+    if (acao === "editar") {
+      return abrirEdicao(interaction, id);
+    }
 
     if (acao === "cancelar") {
       const rascunho = rascunhos.get(id);
