@@ -8,7 +8,7 @@ const {
 
 const data = new SlashCommandBuilder()
   .setName("anunciar")
-  .setDescription("Cria uma prévia de anúncio para o canal de lançamentos.")
+  .setDescription("Cria uma prévia para publicar no canal de anúncios.")
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function execute(interaction) {

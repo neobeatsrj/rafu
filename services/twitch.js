@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { EmbedBuilder } = require("discord.js");
 
-const LANCAMENTOS_CHANNEL_ID = "1530310948831760384";
+const ANUNCIOS_CHANNEL_ID = "1530310948831760384";
 const INTERVALO_TWITCH_MS = 5 * 60_000;
 
 let twitchAccessToken = null;
@@ -74,10 +74,10 @@ async function verificarTwitch(client) {
     }
 
     if (estaAoVivo && !estavaAoVivo) {
-      const canal = await client.channels.fetch(LANCAMENTOS_CHANNEL_ID);
+      const canal = await client.channels.fetch(ANUNCIOS_CHANNEL_ID);
 
       if (!canal || !canal.isTextBased()) {
-        throw new Error("O canal de lançamentos não foi encontrado.");
+        throw new Error("O canal de anúncios não foi encontrado.");
       }
 
       const thumbnail = live.thumbnail_url
