@@ -10,6 +10,7 @@ const {
   TextInputStyle,
 } = require("discord.js");
 const anunciarCommand = require("../commands/anunciar");
+const { buscarPreviewDoLink } = require("../services/linkPreview");
 const { podeAnunciar } = require("../utils/permissions");
 
 const ANUNCIOS_CHANNEL_ID = "1530310948831760384";
@@ -55,7 +56,7 @@ function montarEmbed(rascunho) {
   }
 
   if (rascunho.imagem) {
-    embed.setImage(rascunho.imagem);
+    embed.setThumbnail(rascunho.imagem);
   }
 
   return embed;
@@ -144,9 +145,9 @@ async function abrirFormulario(interaction, tipoSelecionado) {
 async function criarPrevia(interaction, tipoSelecionado) {
   const tipo = TIPOS[tipoSelecionado];
   const link = interaction.fields.getTextInputValue("link").trim();
-  const imagem = interaction.fields.getTextInputValue("imagem").trim();
+  const imagemManual = interaction.fields.getTextInputValue("imagem").trim();
 
-  if (!urlValida(link) || !urlValida(imagem)) {
+  if (!urlValida(link) || !urlValida(imagemManual)) {
     return interaction.reply({
       content:
         "❌ O link ou a imagem não é uma URL válida. Use um endereço começando com `https://`.",
@@ -154,6 +155,7 @@ async function criarPrevia(interaction, tipoSelecionado) {
     });
   }
 
+  const previewDoLink = link ? await buscarPreviewDoLink(link) : null;
   const id = randomUUID();
   const rascunho = {
     autorId: interaction.user.id,
@@ -161,7 +163,7 @@ async function criarPrevia(interaction, tipoSelecionado) {
     titulo: interaction.fields.getTextInputValue("titulo").trim(),
     descricao: interaction.fields.getTextInputValue("descricao").trim(),
     link,
-    imagem,
+    imagem: imagemManual || previewDoLink?.thumbnailUrl || "",
   };
 
   rascunhos.set(id, rascunho);
@@ -181,7 +183,9 @@ async function criarPrevia(interaction, tipoSelecionado) {
 
   return interaction.reply({
     content:
-      "Confira a prévia abaixo. Ao clicar em **Publicar**, ela será enviada imediatamente para o canal de anúncios.",
+      previewDoLink
+        ? `✅ Link do ${previewDoLink.provedor === "spotify" ? "Spotify" : "YouTube"} reconhecido. Confira a prévia e clique em **Publicar**.`
+        : "Confira a prévia abaixo. Ao clicar em **Publicar**, ela será enviada imediatamente para o canal de anúncios.",
     embeds: [montarEmbed(rascunho)],
     components: [botoes],
     flags: MessageFlags.Ephemeral,
