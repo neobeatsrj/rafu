@@ -101,7 +101,7 @@ function montarBotoesDeControle(id) {
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`anunciar:editar:${id}`)
-      .setLabel("Editar")
+      .setLabel("Editar título")
       .setEmoji("✏️")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
