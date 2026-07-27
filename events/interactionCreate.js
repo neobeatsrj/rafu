@@ -208,11 +208,16 @@ async function criarPrevia(interaction, tipoSelecionado) {
 
   const links = [
     link
-      ? { url: link, provedor: previewDoLink?.provedor || null }
+      ? {
+          url: previewDoLink?.linkNormalizado || link,
+          provedor: previewDoLink?.provedor || null,
+        }
       : null,
     linkSecundario
       ? {
-          url: linkSecundario,
+          url:
+            previewDoLinkSecundario?.linkNormalizado ||
+            linkSecundario,
           provedor: previewDoLinkSecundario?.provedor || null,
         }
       : null,

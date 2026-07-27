@@ -82,11 +82,13 @@ async function buscarPreviewDoLink(link) {
   }
 
   let thumbnailUrl = dados.thumbnail_url || null;
+  let linkNormalizado = link;
 
   if (provedor === "youtube") {
     const videoId = extrairVideoIdDoYouTube(link);
 
     if (videoId) {
+      linkNormalizado = `https://www.youtube.com/watch?v=${videoId}`;
       const thumbnailRetangular = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
 
       try {
@@ -109,6 +111,7 @@ async function buscarPreviewDoLink(link) {
     titulo: dados.title || null,
     autor: dados.author_name || null,
     thumbnailUrl,
+    linkNormalizado,
   };
 }
 
