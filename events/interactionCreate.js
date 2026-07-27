@@ -50,8 +50,8 @@ function montarEmbed(rascunho) {
     .setTitle(rascunho.titulo)
     .setDescription(rascunho.descricao);
 
-  if (rascunho.link) {
-    embed.setURL(rascunho.link);
+  if (rascunho.links[0]?.url) {
+    embed.setURL(rascunho.links[0].url);
   }
 
   if (rascunho.imagem) {
@@ -61,29 +61,35 @@ function montarEmbed(rascunho) {
   return embed;
 }
 
-function montarBotaoDoLink(rascunho) {
-  if (!rascunho.link) return null;
+function montarBotoesDosLinks(rascunho) {
+  if (!rascunho.links.length) return null;
 
-  let label = "Abrir link";
-  let emoji = "🔗";
+  const linha = new ActionRowBuilder();
 
-  if (rascunho.provedor === "youtube") {
-    label = "Assistir no YouTube";
-    emoji = "▶️";
+  for (const link of rascunho.links) {
+    let label = "Abrir link";
+    let emoji = "🔗";
+
+    if (link.provedor === "youtube") {
+      label = "Assistir no YouTube";
+      emoji = "▶️";
+    }
+
+    if (link.provedor === "spotify") {
+      label = "Ouvir no Spotify";
+      emoji = "🎧";
+    }
+
+    linha.addComponents(
+      new ButtonBuilder()
+        .setLabel(label)
+        .setEmoji(emoji)
+        .setStyle(ButtonStyle.Link)
+        .setURL(link.url)
+    );
   }
 
-  if (rascunho.provedor === "spotify") {
-    label = "Ouvir no Spotify";
-    emoji = "🎧";
-  }
-
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel(label)
-      .setEmoji(emoji)
-      .setStyle(ButtonStyle.Link)
-      .setURL(rascunho.link)
-  );
+  return linha;
 }
 
 function urlValida(valor) {
@@ -142,8 +148,16 @@ async function abrirFormulario(interaction, tipoSelecionado) {
 
   const link = new TextInputBuilder()
     .setCustomId("link")
-    .setLabel("Link ao clicar no título")
+    .setLabel("Link principal (abre pelo título)")
     .setPlaceholder("https://...")
+    .setStyle(TextInputStyle.Short)
+    .setMaxLength(1000)
+    .setRequired(false);
+
+  const linkSecundario = new TextInputBuilder()
+    .setCustomId("linkSecundario")
+    .setLabel("Segundo link (opcional)")
+    .setPlaceholder("Spotify ou YouTube")
     .setStyle(TextInputStyle.Short)
     .setMaxLength(1000)
     .setRequired(false);
@@ -160,6 +174,7 @@ async function abrirFormulario(interaction, tipoSelecionado) {
     new ActionRowBuilder().addComponents(titulo),
     new ActionRowBuilder().addComponents(descricao),
     new ActionRowBuilder().addComponents(link),
+    new ActionRowBuilder().addComponents(linkSecundario),
     new ActionRowBuilder().addComponents(imagem)
   );
 
@@ -169,9 +184,16 @@ async function abrirFormulario(interaction, tipoSelecionado) {
 async function criarPrevia(interaction, tipoSelecionado) {
   const tipo = TIPOS[tipoSelecionado];
   const link = interaction.fields.getTextInputValue("link").trim();
+  const linkSecundario = interaction.fields
+    .getTextInputValue("linkSecundario")
+    .trim();
   const imagemManual = interaction.fields.getTextInputValue("imagem").trim();
 
-  if (!urlValida(link) || !urlValida(imagemManual)) {
+  if (
+    !urlValida(link) ||
+    !urlValida(linkSecundario) ||
+    !urlValida(imagemManual)
+  ) {
     return interaction.reply({
       content:
         "❌ O link ou a imagem não é uma URL válida. Use um endereço começando com `https://`.",
@@ -179,16 +201,35 @@ async function criarPrevia(interaction, tipoSelecionado) {
     });
   }
 
-  const previewDoLink = link ? await buscarPreviewDoLink(link) : null;
+  const [previewDoLink, previewDoLinkSecundario] = await Promise.all([
+    link ? buscarPreviewDoLink(link) : null,
+    linkSecundario ? buscarPreviewDoLink(linkSecundario) : null,
+  ]);
+
+  const links = [
+    link
+      ? { url: link, provedor: previewDoLink?.provedor || null }
+      : null,
+    linkSecundario
+      ? {
+          url: linkSecundario,
+          provedor: previewDoLinkSecundario?.provedor || null,
+        }
+      : null,
+  ].filter(Boolean);
+
   const id = randomUUID();
   const rascunho = {
     autorId: interaction.user.id,
     cor: tipo.cor,
     titulo: interaction.fields.getTextInputValue("titulo").trim(),
     descricao: interaction.fields.getTextInputValue("descricao").trim(),
-    link,
-    imagem: imagemManual || previewDoLink?.thumbnailUrl || "",
-    provedor: previewDoLink?.provedor || null,
+    links,
+    imagem:
+      imagemManual ||
+      previewDoLink?.thumbnailUrl ||
+      previewDoLinkSecundario?.thumbnailUrl ||
+      "",
   };
 
   rascunhos.set(id, rascunho);
@@ -207,18 +248,18 @@ async function criarPrevia(interaction, tipoSelecionado) {
   );
 
   const componentes = [];
-  const botaoDoLink = montarBotaoDoLink(rascunho);
+  const botoesDosLinks = montarBotoesDosLinks(rascunho);
 
-  if (botaoDoLink) {
-    componentes.push(botaoDoLink);
+  if (botoesDosLinks) {
+    componentes.push(botoesDosLinks);
   }
 
   componentes.push(botoes);
 
   return interaction.reply({
     content:
-      previewDoLink
-        ? `✅ Link do ${previewDoLink.provedor === "spotify" ? "Spotify" : "YouTube"} reconhecido. Confira a prévia e clique em **Publicar**.`
+      previewDoLink || previewDoLinkSecundario
+        ? "✅ Links reconhecidos. Confira a prévia e clique em **Publicar**."
         : "Confira a prévia abaixo. Ao clicar em **Publicar**, ela será enviada imediatamente para o canal de anúncios.",
     embeds: [montarEmbed(rascunho)],
     components: componentes,
@@ -248,10 +289,10 @@ async function publicar(interaction, id) {
       throw new Error("O canal de anúncios não foi encontrado.");
     }
 
-    const botaoDoLink = montarBotaoDoLink(rascunho);
+    const botoesDosLinks = montarBotoesDosLinks(rascunho);
     const mensagem = await canal.send({
       embeds: [montarEmbed(rascunho)],
-      components: botaoDoLink ? [botaoDoLink] : [],
+      components: botoesDosLinks ? [botoesDosLinks] : [],
     });
 
     rascunhos.delete(id);
