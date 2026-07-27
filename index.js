@@ -155,8 +155,8 @@ client.once("clientReady", async () => {
 
     await verificarTwitch();
 
-    // Verifica a cada 60 segundos.
-    setInterval(verificarTwitch, 60_000);
+    // Verifica a cada 5 minutos.
+    setInterval(verificarTwitch, 5 * 60_000);
   } catch (erro) {
     console.error(
       "❌ Não foi possível conectar à Twitch:",
