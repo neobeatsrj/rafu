@@ -3,13 +3,19 @@ require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const anunciarCommand = require("./commands/anunciar");
 const interactionCreate = require("./events/interactionCreate");
+const { registrarEntrada, registrarSaida } = require("./events/memberLog");
 const { iniciarMonitoramentoTwitch } = require("./services/twitch");
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+  ],
 });
 
 client.on("interactionCreate", interactionCreate);
+client.on("guildMemberAdd", registrarEntrada);
+client.on("guildMemberRemove", registrarSaida);
 
 client.once("clientReady", async () => {
   console.log(`✅ ${client.user.tag} está online!`);
