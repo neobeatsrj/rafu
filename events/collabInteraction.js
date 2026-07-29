@@ -169,7 +169,7 @@ function montarFormularioAutorizacao() {
     new TextDisplayBuilder().setContent(
       "**Autorização para avaliação e encaminhamento**\n" +
         "Confirmo que sou titular deste material ou possuo autorização para compartilhá-lo. Autorizo a Rafu e a equipe responsável pelo servidor a armazenar, organizar, reproduzir para fins de avaliação e encaminhar o arquivo exclusivamente aos destinos selecionados.\n\n" +
-        "Esta autorização não transfere direitos autorais, não permite lançamento, comercialização ou uso definitivo e não garante seleção, resposta, crédito ou remuneração. Qualquer utilização será negociada e formalizada separadamente."
+        "Esta autorização não transfere direitos autorais, não permite lançamento, comercialização ou uso definitivo e não garante seleção, resposta, crédito ou remuneração. Caso exista interesse, qualquer utilização será negociada e formalizada separadamente por meio do e-mail informado acima."
     )
   );
 
@@ -301,10 +301,22 @@ async function prepararCollab(interaction) {
       );
     }
 
+    const respostaArquivo = await fetch(arquivo.url);
+
+    if (!respostaArquivo.ok) {
+      throw new Error(
+        `Não foi possível guardar o arquivo temporário: HTTP ${respostaArquivo.status}`
+      );
+    }
+
+    const arquivoBuffer = Buffer.from(
+      await respostaArquivo.arrayBuffer()
+    );
+
     rascunhos.set(interaction.user.id, {
       arquivo: {
         name: arquivo.name,
-        url: arquivo.url,
+        buffer: arquivoBuffer,
       },
       destinosSelecionados,
       criadoEm: Date.now(),
@@ -410,7 +422,7 @@ async function publicarCollab(interaction) {
                 quantidade: 0,
               }),
             ],
-            files: [{ attachment: arquivo.url, name: arquivo.name }],
+            files: [{ attachment: arquivo.buffer, name: arquivo.name }],
             flags: MessageFlags.IsComponentsV2,
           });
 
@@ -447,7 +459,7 @@ async function publicarCollab(interaction) {
                 destinosSelecionados,
               }),
             ],
-            files: [{ attachment: arquivo.url, name: arquivo.name }],
+            files: [{ attachment: arquivo.buffer, name: arquivo.name }],
           });
         }
 
