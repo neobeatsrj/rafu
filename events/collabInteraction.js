@@ -61,6 +61,8 @@ const EXTENSOES_PERMITIDAS = new Set([
   "wav",
   "zip",
 ]);
+const RASCUNHO_DURACAO_MS = 30 * 60 * 1000;
+const rascunhos = new Map();
 
 function extensaoDoArquivo(nome) {
   return nome.toLowerCase().split(".").pop();
@@ -79,22 +81,28 @@ function emailValido(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function montarFormulario() {
+function obterRascunho(userId) {
+  const rascunho = rascunhos.get(userId);
+
+  if (!rascunho) return null;
+
+  if (Date.now() - rascunho.criadoEm > RASCUNHO_DURACAO_MS) {
+    rascunhos.delete(userId);
+    return null;
+  }
+
+  return rascunho;
+}
+
+function montarFormularioMaterial() {
   const modal = new ModalBuilder()
-    .setCustomId("collab:formulario")
-    .setTitle("Enviar collab");
+    .setCustomId("collab:material")
+    .setTitle("Enviar collab • 1/2");
 
   const arquivo = new FileUploadBuilder()
     .setCustomId("collab_arquivo")
     .setMinValues(1)
     .setMaxValues(1)
-    .setRequired(true);
-
-  const email = new TextInputBuilder()
-    .setCustomId("collab_email")
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder("seuemail@exemplo.com")
-    .setMaxLength(254)
     .setRequired(true);
 
   const destinos = new CheckboxGroupBuilder()
@@ -103,26 +111,22 @@ function montarFormulario() {
     .setMaxValues(4)
     .addOptions(
       new CheckboxGroupOptionBuilder()
-        .setLabel("Comunidade / procurar collab")
-        .setDescription("Publica no chat para outros membros colaborarem.")
+        .setLabel("Encontrar uma collab")
+        .setDescription("Compartilho com a comunidade para criarem juntos.")
         .setValue("comunidade"),
       new CheckboxGroupOptionBuilder()
         .setLabel("Vault do Neo Beats")
-        .setDescription("Guarda para avaliação do Neo e oportunidades futuras.")
+        .setDescription("Envio para a seleção do Neo e futuras oportunidades.")
         .setValue("vault"),
       new CheckboxGroupOptionBuilder()
         .setLabel("Projetos da The Box")
-        .setDescription("Considera a ideia para possíveis projetos da The Box.")
+        .setDescription("Coloco para avaliação em projetos da The Box.")
         .setValue("the_box"),
       new CheckboxGroupOptionBuilder()
-        .setLabel("Rede de produtores")
-        .setDescription("Autoriza apresentar a produtores selecionados.")
+        .setLabel("Conexões da indústria")
+        .setDescription("Posso apresentar a profissionais selecionados.")
         .setValue("rede")
     );
-
-  const autorizacao = new CheckboxBuilder()
-    .setCustomId("collab_autorizacao")
-    .setDefault(false);
 
   modal.addLabelComponents(
     new LabelBuilder()
@@ -130,9 +134,31 @@ function montarFormulario() {
       .setDescription("O nome do arquivo será usado como título.")
       .setFileUploadComponent(arquivo),
     new LabelBuilder()
-      .setLabel("Onde você quer enviar?")
-      .setDescription("Escolha uma ou mais opções.")
-      .setCheckboxGroupComponent(destinos),
+      .setLabel("Onde sua ideia pode chegar?")
+      .setDescription("Escolha um ou mais caminhos.")
+      .setCheckboxGroupComponent(destinos)
+  );
+
+  return modal;
+}
+
+function montarFormularioAutorizacao() {
+  const modal = new ModalBuilder()
+    .setCustomId("collab:autorizacao")
+    .setTitle("Enviar collab • 2/2");
+
+  const email = new TextInputBuilder()
+    .setCustomId("collab_email")
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder("seuemail@exemplo.com")
+    .setMaxLength(254)
+    .setRequired(true);
+
+  const autorizacao = new CheckboxBuilder()
+    .setCustomId("collab_autorizacao")
+    .setDefault(false);
+
+  modal.addLabelComponents(
     new LabelBuilder()
       .setLabel("E-mail para contato")
       .setDescription("Usaremos somente se houver interesse no material.")
@@ -246,10 +272,10 @@ function montarEmbedPrivado({
 }
 
 async function abrirFormulario(interaction) {
-  return interaction.showModal(montarFormulario());
+  return interaction.showModal(montarFormularioMaterial());
 }
 
-async function publicarCollab(interaction) {
+async function prepararCollab(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
@@ -265,14 +291,87 @@ async function publicarCollab(interaction) {
       );
     }
 
+    const destinosSelecionados = [
+      ...interaction.fields.getCheckboxGroup("collab_destinos"),
+    ].filter((destino) => DESTINOS[destino]);
+
+    if (destinosSelecionados.length === 0) {
+      return interaction.editReply(
+        "❌ Escolha pelo menos um destino para o material."
+      );
+    }
+
+    rascunhos.set(interaction.user.id, {
+      arquivo: {
+        name: arquivo.name,
+        url: arquivo.url,
+      },
+      destinosSelecionados,
+      criadoEm: Date.now(),
+    });
+
+    const nomesDosDestinos = destinosSelecionados
+      .map((destino) => {
+        const dados = DESTINOS[destino];
+        return `• ${dados.emoji} ${dados.nome}`;
+      })
+      .join("\n");
+
+    const continuar = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("collab:continuar")
+        .setLabel("Continuar envio")
+        .setEmoji("➡️")
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    return interaction.editReply({
+      content:
+        `✅ **Material preparado**\n` +
+        `Arquivo: \`${arquivo.name}\`\n\n` +
+        `**Destinos escolhidos:**\n${nomesDosDestinos}\n\n` +
+        "Agora informe seu contato e aceite a autorização.",
+      components: [continuar],
+    });
+  } catch (erro) {
+    console.error("❌ Não foi possível preparar a collab:", erro);
+
+    return interaction.editReply(
+      "❌ Não consegui preparar seu material. Tente novamente ou avise a Staff."
+    );
+  }
+}
+
+async function abrirFormularioAutorizacao(interaction) {
+  if (!obterRascunho(interaction.user.id)) {
+    return interaction.reply({
+      content:
+        "⌛ Este envio expirou. Clique novamente em **Enviar minha collab**.",
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  return interaction.showModal(montarFormularioAutorizacao());
+}
+
+async function publicarCollab(interaction) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const rascunho = obterRascunho(interaction.user.id);
+
+    if (!rascunho) {
+      return interaction.editReply(
+        "⌛ Este envio expirou. Clique novamente em **Enviar minha collab**."
+      );
+    }
+
+    const { arquivo, destinosSelecionados } = rascunho;
     const email = interaction.fields
       .getTextInputValue("collab_email")
       .trim()
       .toLowerCase();
     const autorizou = interaction.fields.getCheckbox("collab_autorizacao");
-    const destinosSelecionados = [
-      ...interaction.fields.getCheckboxGroup("collab_destinos"),
-    ].filter((destino) => DESTINOS[destino]);
 
     if (!emailValido(email)) {
       return interaction.editReply(
@@ -283,12 +382,6 @@ async function publicarCollab(interaction) {
     if (!autorizou) {
       return interaction.editReply(
         "❌ Você precisa aceitar a autorização para enviar o material."
-      );
-    }
-
-    if (destinosSelecionados.length === 0) {
-      return interaction.editReply(
-        "❌ Escolha pelo menos um destino para o material."
       );
     }
 
@@ -382,6 +475,7 @@ async function publicarCollab(interaction) {
         "\nAvise a Staff para conferir as permissões desses canais.";
     }
 
+    rascunhos.delete(interaction.user.id);
     return interaction.editReply(resposta);
   } catch (erro) {
     console.error("❌ Não foi possível publicar a collab:", erro);
@@ -492,7 +586,23 @@ module.exports = async function collabInteraction(interaction) {
 
   if (
     interaction.isModalSubmit() &&
-    interaction.customId === "collab:formulario"
+    interaction.customId === "collab:material"
+  ) {
+    await prepararCollab(interaction);
+    return true;
+  }
+
+  if (
+    interaction.isButton() &&
+    interaction.customId === "collab:continuar"
+  ) {
+    await abrirFormularioAutorizacao(interaction);
+    return true;
+  }
+
+  if (
+    interaction.isModalSubmit() &&
+    interaction.customId === "collab:autorizacao"
   ) {
     await publicarCollab(interaction);
     return true;
