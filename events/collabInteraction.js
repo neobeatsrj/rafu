@@ -5,7 +5,9 @@ const {
   CheckboxBuilder,
   CheckboxGroupBuilder,
   CheckboxGroupOptionBuilder,
+  ContainerBuilder,
   EmbedBuilder,
+  FileBuilder,
   FileUploadBuilder,
   LabelBuilder,
   MessageFlags,
@@ -170,22 +172,33 @@ function montarBotaoDeInteresse(messageId, quantidade) {
   );
 }
 
-function montarEmbed({ autor, titulo }) {
-  return new EmbedBuilder()
-    .setColor(0xf1c40f)
-    .setAuthor({
-      name: autor.displayName,
-      iconURL: autor.displayAvatarURL(),
-    })
-    .setTitle(`🤝 ${titulo}`)
-    .setDescription(
-      "Este produtor enviou uma ideia e está aberto a novas colaborações."
+function montarCollabPublica({
+  autor,
+  titulo,
+  arquivoNome,
+  messageId,
+  quantidade,
+}) {
+  return new ContainerBuilder()
+    .setAccentColor(0xf1c40f)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `### 🤝 ${titulo}\n` +
+          `Enviado por ${autor}\n\n` +
+          "Este produtor está aberto a novas colaborações.\n" +
+          `**${quantidade} ${
+            quantidade === 1
+              ? "pessoa quer colaborar"
+              : "pessoas querem colaborar"
+          }**`
+      )
     )
-    .addFields({
-      name: "Interessados",
-      value: "0 pessoas",
-      inline: true,
-    });
+    .addFileComponents(
+      new FileBuilder().setURL(`attachment://${arquivoNome}`)
+    )
+    .addActionRowComponents(
+      montarBotaoDeInteresse(messageId, quantidade)
+    );
 }
 
 function montarEmbedPrivado({
@@ -295,24 +308,36 @@ async function publicarCollab(interaction) {
 
         if (destino.publico) {
           const mensagem = await canal.send({
-            content: `${interaction.user} está procurando uma collab!`,
-            embeds: [
-              montarEmbed({
+            components: [
+              montarCollabPublica({
                 autor: interaction.user,
                 titulo,
+                arquivoNome: arquivo.name,
+                messageId: "pendente",
+                quantidade: 0,
               }),
             ],
             files: [{ attachment: arquivo.url, name: arquivo.name }],
+            flags: MessageFlags.IsComponentsV2,
           });
 
           await mensagem.edit({
-            components: [montarBotaoDeInteresse(mensagem.id, 0)],
+            components: [
+              montarCollabPublica({
+                autor: interaction.user,
+                titulo,
+                arquivoNome: arquivo.name,
+                messageId: mensagem.id,
+                quantidade: 0,
+              }),
+            ],
           });
 
           await registrarCollab(mensagem.id, {
             autorId: interaction.user.id,
             canalId: canal.id,
             arquivoNome: arquivo.name,
+            titulo,
             email,
             destinos: destinosSelecionados,
             autorizacaoAceitaEm: new Date().toISOString(),
@@ -391,26 +416,48 @@ async function demonstrarInteresse(interaction) {
 
     const mensagem = interaction.message;
     const arquivo = mensagem.attachments.first();
-    const embed = EmbedBuilder.from(mensagem.embeds[0]);
 
-    embed.spliceFields(
-      embed.data.fields.length - 1,
-      1,
-      {
-        name: "Interessados",
-        value: `${resultado.quantidade} ${
-          resultado.quantidade === 1 ? "pessoa" : "pessoas"
-        }`,
-        inline: true,
-      }
-    );
+    if (mensagem.embeds.length > 0) {
+      const embed = EmbedBuilder.from(mensagem.embeds[0]);
 
-    await mensagem.edit({
-      embeds: [embed],
-      components: [
-        montarBotaoDeInteresse(messageId, resultado.quantidade),
-      ],
-    });
+      embed.spliceFields(
+        embed.data.fields.length - 1,
+        1,
+        {
+          name: "Interessados",
+          value: `${resultado.quantidade} ${
+            resultado.quantidade === 1 ? "pessoa" : "pessoas"
+          }`,
+          inline: true,
+        }
+      );
+
+      await mensagem.edit({
+        embeds: [embed],
+        components: [
+          montarBotaoDeInteresse(messageId, resultado.quantidade),
+        ],
+      });
+    } else {
+      const autor = await interaction.client.users.fetch(
+        resultado.collab.autorId
+      );
+
+      await mensagem.edit({
+        components: [
+          montarCollabPublica({
+            autor,
+            titulo:
+              resultado.collab.titulo ||
+              tituloDoArquivo(resultado.collab.arquivoNome) ||
+              "Nova ideia",
+            arquivoNome: resultado.collab.arquivoNome,
+            messageId,
+            quantidade: resultado.quantidade,
+          }),
+        ],
+      });
+    }
 
     const botaoDoArquivo = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
