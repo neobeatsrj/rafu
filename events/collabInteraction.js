@@ -11,6 +11,7 @@ const {
   LabelBuilder,
   MessageFlags,
   ModalBuilder,
+  SectionBuilder,
   TextInputBuilder,
   TextInputStyle,
   TextDisplayBuilder,
@@ -252,33 +253,19 @@ function montarResumoDoMaterial(rascunho) {
   };
 }
 
-function montarBotoesDaCollab(messageId, quantidade, playerUrl) {
+function montarBotaoColaborar(messageId, quantidade) {
   const label =
     quantidade === 0
       ? "Quero colaborar"
       : `Quero colaborar • ${quantidade}`;
 
-  const botoes = [];
-
-  if (playerUrl) {
-    botoes.push(
-      new ButtonBuilder()
-        .setLabel("Ouvir prévia")
-        .setEmoji("▶️")
-        .setStyle(ButtonStyle.Link)
-        .setURL(playerUrl)
-    );
-  }
-
-  botoes.push(
+  return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-        .setCustomId(`collab:interesse:${messageId}`)
-        .setLabel(label)
-        .setEmoji("🤝")
-        .setStyle(ButtonStyle.Success)
+      .setCustomId(`collab:interesse:${messageId}`)
+      .setLabel(label)
+      .setEmoji("🤝")
+      .setStyle(ButtonStyle.Success)
   );
-
-  return new ActionRowBuilder().addComponents(botoes);
 }
 
 function montarCollabPublica({
@@ -289,7 +276,7 @@ function montarCollabPublica({
   quantidade,
   playerUrl,
 }) {
-  return new ContainerBuilder()
+  const container = new ContainerBuilder()
     .setAccentColor(0xf1c40f)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
@@ -302,10 +289,30 @@ function montarCollabPublica({
               : "pessoas querem colaborar"
           }**`
       )
-    )
-    .addActionRowComponents(
-      montarBotoesDaCollab(messageId, quantidade, playerUrl)
     );
+
+  if (playerUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`### 🎵 ${arquivoNome}`)
+        )
+        .setButtonAccessory(
+          new ButtonBuilder()
+            .setEmoji("▶️")
+            .setStyle(ButtonStyle.Link)
+            .setURL(playerUrl)
+        )
+    );
+  } else {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`### 🎵 ${arquivoNome}`)
+    );
+  }
+
+  return container.addActionRowComponents(
+    montarBotaoColaborar(messageId, quantidade)
+  );
 }
 
 function montarPlayerUrl({ arquivoUrl, titulo, autor }) {
