@@ -213,12 +213,15 @@ function montarResumoDoMaterial(rascunho) {
     })
     .join("\n");
 
-  const acoes = new ActionRowBuilder().addComponents(
+  const editarTitulo = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("collab:editar-titulo")
       .setLabel("Editar título")
       .setEmoji("✏️")
-      .setStyle(ButtonStyle.Secondary),
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const continuarEnvio = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("collab:continuar")
       .setLabel("Continuar envio")
@@ -227,13 +230,24 @@ function montarResumoDoMaterial(rascunho) {
   );
 
   return {
-    content:
-      `✅ **Material preparado**\n` +
-      `**Título:** ${rascunho.titulo}\n` +
-      `Arquivo: \`${rascunho.arquivo.name}\`\n\n` +
-      `**Destinos escolhidos:**\n${nomesDosDestinos}\n\n` +
-      "Confira o título antes de continuar. Depois, informe seu contato e aceite a autorização.",
-    components: [acoes],
+    components: [
+      new ContainerBuilder()
+        .setAccentColor(0x5865f2)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `## ✅ Material preparado\n**Título:** ${rascunho.titulo}`
+          )
+        )
+        .addActionRowComponents(editarTitulo)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `Arquivo: \`${rascunho.arquivo.name}\`\n\n` +
+              `**Destinos escolhidos:**\n${nomesDosDestinos}\n\n` +
+              "Depois, informe seu contato e aceite a autorização."
+          )
+        )
+        .addActionRowComponents(continuarEnvio),
+    ],
   };
 }
 
@@ -414,7 +428,12 @@ async function prepararCollab(interaction) {
     };
 
     rascunhos.set(interaction.user.id, rascunho);
-    return interaction.editReply(montarResumoDoMaterial(rascunho));
+    await interaction.deleteReply();
+
+    return interaction.followUp({
+      ...montarResumoDoMaterial(rascunho),
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    });
   } catch (erro) {
     console.error("❌ Não foi possível preparar a collab:", erro);
 
