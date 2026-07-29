@@ -235,8 +235,7 @@ function montarResumoDoMaterial(rascunho) {
         .setAccentColor(0x5865f2)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `## ✅ Material preparado\n\n` +
-              `### 🎵 Título da collab\n` +
+            `### 🎵 Título da collab\n` +
               `> ## ${rascunho.titulo}`
           )
         )
