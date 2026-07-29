@@ -299,13 +299,7 @@ function montarCollabPublica({
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `### 🤝 ${titulo}\n` +
-          `Enviado por ${autor}\n\n` +
-          "Este produtor está aberto a novas colaborações.\n" +
-          `**${quantidade} ${
-            quantidade === 1
-              ? "pessoa quer colaborar"
-              : "pessoas querem colaborar"
-          }**`
+          `Enviado por ${autor}`
       )
     );
 
@@ -323,9 +317,20 @@ function montarCollabPublica({
     );
   }
 
-  return container.addActionRowComponents(
-    montarBotoesDaCollab(messageId, quantidade, playerUrl)
-  );
+  return container
+    .addActionRowComponents(
+      montarBotoesDaCollab(messageId, quantidade, playerUrl)
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        "Este produtor está aberto a novas colaborações.\n" +
+          `**${quantidade} ${
+            quantidade === 1
+              ? "pessoa quer colaborar"
+              : "pessoas querem colaborar"
+          }**`
+      )
+    );
 }
 
 function montarPlayerUrl({ arquivoUrl, titulo, autor }) {
