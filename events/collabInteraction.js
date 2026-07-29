@@ -218,7 +218,7 @@ function montarResumoDoMaterial(rascunho) {
       .setCustomId("collab:editar-titulo")
       .setLabel("Editar título")
       .setEmoji("✏️")
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(ButtonStyle.Primary)
   );
 
   const continuarEnvio = new ActionRowBuilder().addComponents(
@@ -226,7 +226,7 @@ function montarResumoDoMaterial(rascunho) {
       .setCustomId("collab:continuar")
       .setLabel("Continuar envio")
       .setEmoji("➡️")
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Success)
   );
 
   return {
@@ -236,8 +236,8 @@ function montarResumoDoMaterial(rascunho) {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `## ✅ Material preparado\n\n` +
-              `**Título:**\n` +
-              `## ${rascunho.titulo}`
+              `### 🎵 Título da collab\n` +
+              `> ## ${rascunho.titulo}`
           )
         )
         .addActionRowComponents(editarTitulo)
