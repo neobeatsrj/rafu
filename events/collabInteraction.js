@@ -7,7 +7,6 @@ const {
   CheckboxGroupOptionBuilder,
   ContainerBuilder,
   EmbedBuilder,
-  FileBuilder,
   FileUploadBuilder,
   LabelBuilder,
   MessageFlags,
@@ -62,6 +61,7 @@ const EXTENSOES_PERMITIDAS = new Set([
   "zip",
 ]);
 const RASCUNHO_DURACAO_MS = 30 * 60 * 1000;
+const PLAYER_BASE_URL = "https://rafu-player-preview.neobeats.chatgpt.site";
 const rascunhos = new Map();
 
 function extensaoDoArquivo(nome) {
@@ -183,19 +183,33 @@ function montarFormularioAutorizacao() {
   return modal;
 }
 
-function montarBotaoDeInteresse(messageId, quantidade) {
+function montarBotoesDaCollab(messageId, quantidade, playerUrl) {
   const label =
     quantidade === 0
       ? "Quero colaborar"
       : `Quero colaborar • ${quantidade}`;
 
-  return new ActionRowBuilder().addComponents(
+  const botoes = [];
+
+  if (playerUrl) {
+    botoes.push(
+      new ButtonBuilder()
+        .setLabel("Ouvir prévia")
+        .setEmoji("▶️")
+        .setStyle(ButtonStyle.Link)
+        .setURL(playerUrl)
+    );
+  }
+
+  botoes.push(
     new ButtonBuilder()
-      .setCustomId(`collab:interesse:${messageId}`)
-      .setLabel(label)
-      .setEmoji("🤝")
-      .setStyle(ButtonStyle.Success)
+        .setCustomId(`collab:interesse:${messageId}`)
+        .setLabel(label)
+        .setEmoji("🤝")
+        .setStyle(ButtonStyle.Success)
   );
+
+  return new ActionRowBuilder().addComponents(botoes);
 }
 
 function montarCollabPublica({
@@ -204,6 +218,7 @@ function montarCollabPublica({
   arquivoNome,
   messageId,
   quantidade,
+  playerUrl,
 }) {
   return new ContainerBuilder()
     .setAccentColor(0xf1c40f)
@@ -219,12 +234,33 @@ function montarCollabPublica({
           }**`
       )
     )
-    .addFileComponents(
-      new FileBuilder().setURL(`attachment://${arquivoNome}`)
-    )
     .addActionRowComponents(
-      montarBotaoDeInteresse(messageId, quantidade)
+      montarBotoesDaCollab(messageId, quantidade, playerUrl)
     );
+}
+
+function montarPlayerUrl({ arquivoUrl, titulo, autor }) {
+  const url = new URL(PLAYER_BASE_URL);
+  url.searchParams.set("audio", arquivoUrl);
+  url.searchParams.set("title", titulo);
+  url.searchParams.set("author", autor);
+  return url.toString();
+}
+
+function encontrarArquivoNaMensagem(mensagem) {
+  const anexo = mensagem.attachments.first();
+  if (anexo?.url) return anexo.url;
+
+  const procurar = (componentes = []) => {
+    for (const componente of componentes) {
+      if (componente?.file?.url) return componente.file.url;
+      const encontrado = procurar(componente?.components);
+      if (encontrado) return encontrado;
+    }
+    return null;
+  };
+
+  return procurar(mensagem.components);
 }
 
 function montarEmbedPrivado({
@@ -400,6 +436,41 @@ async function publicarCollab(interaction) {
     const titulo = tituloDoArquivo(arquivo.name) || "Nova ideia";
     const enviados = [];
     const falhas = [];
+    let arquivoPublicoUrl = null;
+    let playerUrl = null;
+
+    if (destinosSelecionados.includes("comunidade")) {
+      const canalDeArmazenamento = await interaction.client.channels.fetch(
+        DESTINOS.vault.canalId
+      );
+
+      if (!canalDeArmazenamento || !canalDeArmazenamento.isTextBased()) {
+        throw new Error("Canal privado de armazenamento não encontrado.");
+      }
+
+      const mensagemDeArmazenamento = await canalDeArmazenamento.send({
+        content: `🔐 Arquivo da collab pública enviado por ${interaction.user}.`,
+        files: [{ attachment: arquivo.buffer, name: arquivo.name }],
+      });
+
+      arquivoPublicoUrl = mensagemDeArmazenamento.attachments.first()?.url;
+
+      if (!arquivoPublicoUrl) {
+        throw new Error("Não foi possível obter o endereço privado do arquivo.");
+      }
+
+      playerUrl = montarPlayerUrl({
+        arquivoUrl: arquivoPublicoUrl,
+        titulo,
+        autor: interaction.user.displayName || interaction.user.username,
+      });
+
+      if (playerUrl.length > 512) {
+        throw new Error(
+          "O endereço da prévia ultrapassou o limite permitido pelo Discord."
+        );
+      }
+    }
 
     for (const destinoSelecionado of destinosSelecionados) {
       const destino = DESTINOS[destinoSelecionado];
@@ -420,9 +491,9 @@ async function publicarCollab(interaction) {
                 arquivoNome: arquivo.name,
                 messageId: "pendente",
                 quantidade: 0,
+                playerUrl,
               }),
             ],
-            files: [{ attachment: arquivo.buffer, name: arquivo.name }],
             flags: MessageFlags.IsComponentsV2,
           });
 
@@ -434,6 +505,7 @@ async function publicarCollab(interaction) {
                 arquivoNome: arquivo.name,
                 messageId: mensagem.id,
                 quantidade: 0,
+                playerUrl,
               }),
             ],
           });
@@ -444,6 +516,8 @@ async function publicarCollab(interaction) {
             arquivoNome: arquivo.name,
             titulo,
             email,
+            arquivoUrl: arquivoPublicoUrl,
+            playerUrl,
             destinos: destinosSelecionados,
             autorizacaoAceitaEm: new Date().toISOString(),
           });
@@ -521,7 +595,8 @@ async function demonstrarInteresse(interaction) {
     }
 
     const mensagem = interaction.message;
-    const arquivo = mensagem.attachments.first();
+    const arquivoUrl =
+      resultado.collab.arquivoUrl || encontrarArquivoNaMensagem(mensagem);
 
     if (mensagem.embeds.length > 0) {
       const embed = EmbedBuilder.from(mensagem.embeds[0]);
@@ -541,7 +616,11 @@ async function demonstrarInteresse(interaction) {
       await mensagem.edit({
         embeds: [embed],
         components: [
-          montarBotaoDeInteresse(messageId, resultado.quantidade),
+          montarBotoesDaCollab(
+            messageId,
+            resultado.quantidade,
+            resultado.collab.playerUrl
+          ),
         ],
       });
     } else {
@@ -560,9 +639,14 @@ async function demonstrarInteresse(interaction) {
             arquivoNome: resultado.collab.arquivoNome,
             messageId,
             quantidade: resultado.quantidade,
+            playerUrl: resultado.collab.playerUrl,
           }),
         ],
       });
+    }
+
+    if (!arquivoUrl) {
+      throw new Error("Arquivo da collab não foi localizado.");
     }
 
     const botaoDoArquivo = new ActionRowBuilder().addComponents(
@@ -570,7 +654,7 @@ async function demonstrarInteresse(interaction) {
         .setLabel("Baixar arquivo")
         .setEmoji("📥")
         .setStyle(ButtonStyle.Link)
-        .setURL(arquivo.url)
+        .setURL(arquivoUrl)
     );
 
     const aviso = resultado.jaRegistrado
