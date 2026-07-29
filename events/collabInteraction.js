@@ -2,6 +2,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  CheckboxBuilder,
   EmbedBuilder,
   FileUploadBuilder,
   LabelBuilder,
@@ -9,6 +10,7 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  TextDisplayBuilder,
 } = require("discord.js");
 const {
   registrarCollab,
@@ -37,38 +39,23 @@ function extensaoDoArquivo(nome) {
   return nome.toLowerCase().split(".").pop();
 }
 
+function tituloDoArquivo(nome) {
+  return nome
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+function emailValido(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function montarFormulario() {
   const modal = new ModalBuilder()
     .setCustomId("collab:formulario")
     .setTitle("Enviar collab");
-
-  const titulo = new TextInputBuilder()
-    .setCustomId("collab_titulo")
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder("Ex.: Beat de trap melódico")
-    .setMaxLength(100)
-    .setRequired(true);
-
-  const descricao = new TextInputBuilder()
-    .setCustomId("collab_descricao")
-    .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder("Conte sobre a ideia e o que já foi feito.")
-    .setMaxLength(1000)
-    .setRequired(true);
-
-  const procurando = new TextInputBuilder()
-    .setCustomId("collab_procurando")
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder("Produtor, MC ou alguém para finalizar")
-    .setMaxLength(100)
-    .setRequired(true);
-
-  const detalhes = new TextInputBuilder()
-    .setCustomId("collab_detalhes")
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder("Ex.: 140 BPM • Fá menor")
-    .setMaxLength(100)
-    .setRequired(false);
 
   const arquivo = new FileUploadBuilder()
     .setCustomId("collab_arquivo")
@@ -76,27 +63,41 @@ function montarFormulario() {
     .setMaxValues(1)
     .setRequired(true);
 
+  const email = new TextInputBuilder()
+    .setCustomId("collab_email")
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder("seuemail@exemplo.com")
+    .setMaxLength(254)
+    .setRequired(true);
+
+  const autorizacao = new CheckboxBuilder()
+    .setCustomId("collab_autorizacao")
+    .setDefault(false);
+
   modal.addLabelComponents(
     new LabelBuilder()
-      .setLabel("Título")
-      .setDescription("Dê um nome curto para sua ideia.")
-      .setTextInputComponent(titulo),
-    new LabelBuilder()
-      .setLabel("Descrição")
-      .setDescription("Explique rapidamente o projeto.")
-      .setTextInputComponent(descricao),
-    new LabelBuilder()
-      .setLabel("O que você procura?")
-      .setDescription("Produtor, MC ou ajuda para finalizar.")
-      .setTextInputComponent(procurando),
-    new LabelBuilder()
-      .setLabel("BPM e tom (opcional)")
-      .setDescription("Preencha se souber.")
-      .setTextInputComponent(detalhes),
-    new LabelBuilder()
       .setLabel("Arquivo")
-      .setDescription("Áudio, MIDI, projeto ou arquivo compactado.")
-      .setFileUploadComponent(arquivo)
+      .setDescription("O nome do arquivo será usado como título.")
+      .setFileUploadComponent(arquivo),
+    new LabelBuilder()
+      .setLabel("E-mail para contato")
+      .setDescription("Usaremos somente se houver interesse no material.")
+      .setTextInputComponent(email)
+  );
+
+  modal.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      "**Autorização para avaliação e encaminhamento**\n" +
+        "Confirmo que sou titular deste material ou possuo autorização para compartilhá-lo. Autorizo a Rafu e a equipe responsável pelo servidor a armazenar, organizar, reproduzir para fins de avaliação e encaminhar o arquivo exclusivamente aos destinos selecionados.\n\n" +
+        "Esta autorização não transfere direitos autorais, não permite lançamento, comercialização ou uso definitivo e não garante seleção, resposta, crédito ou remuneração. Qualquer utilização será negociada e formalizada separadamente."
+    )
+  );
+
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel("Li e aceito a autorização acima")
+      .setDescription("É necessário aceitar para enviar o material.")
+      .setCheckboxComponent(autorizacao)
   );
 
   return modal;
@@ -117,36 +118,22 @@ function montarBotaoDeInteresse(messageId, quantidade) {
   );
 }
 
-function montarEmbed({ autor, titulo, descricao, procurando, detalhes }) {
-  const embed = new EmbedBuilder()
+function montarEmbed({ autor, titulo }) {
+  return new EmbedBuilder()
     .setColor(0xf1c40f)
     .setAuthor({
       name: autor.displayName,
       iconURL: autor.displayAvatarURL(),
     })
     .setTitle(`🤝 ${titulo}`)
-    .setDescription(descricao)
+    .setDescription(
+      "Este produtor enviou uma ideia e está aberto a novas colaborações."
+    )
     .addFields({
-      name: "Procuro",
-      value: procurando,
+      name: "Interessados",
+      value: "0 pessoas",
       inline: true,
     });
-
-  if (detalhes) {
-    embed.addFields({
-      name: "BPM / Tom",
-      value: detalhes,
-      inline: true,
-    });
-  }
-
-  embed.addFields({
-    name: "Interessados",
-    value: "0 pessoas",
-    inline: true,
-  });
-
-  return embed;
 }
 
 async function abrirFormulario(interaction) {
@@ -169,6 +156,24 @@ async function publicarCollab(interaction) {
       );
     }
 
+    const email = interaction.fields
+      .getTextInputValue("collab_email")
+      .trim()
+      .toLowerCase();
+    const autorizou = interaction.fields.getCheckbox("collab_autorizacao");
+
+    if (!emailValido(email)) {
+      return interaction.editReply(
+        "❌ Informe um endereço de e-mail válido."
+      );
+    }
+
+    if (!autorizou) {
+      return interaction.editReply(
+        "❌ Você precisa aceitar a autorização para enviar o material."
+      );
+    }
+
     const canal = await interaction.client.channels.fetch(
       CHAT_PRODUCAO_CHANNEL_ID
     );
@@ -177,18 +182,7 @@ async function publicarCollab(interaction) {
       throw new Error("O canal de produção não foi encontrado.");
     }
 
-    const titulo = interaction.fields
-      .getTextInputValue("collab_titulo")
-      .trim();
-    const descricao = interaction.fields
-      .getTextInputValue("collab_descricao")
-      .trim();
-    const procurando = interaction.fields
-      .getTextInputValue("collab_procurando")
-      .trim();
-    const detalhes = interaction.fields
-      .getTextInputValue("collab_detalhes")
-      .trim();
+    const titulo = tituloDoArquivo(arquivo.name) || "Nova ideia";
 
     const mensagem = await canal.send({
       content: `${interaction.user} está procurando uma collab!`,
@@ -196,9 +190,6 @@ async function publicarCollab(interaction) {
         montarEmbed({
           autor: interaction.user,
           titulo,
-          descricao,
-          procurando,
-          detalhes,
         }),
       ],
       files: [{ attachment: arquivo.url, name: arquivo.name }],
@@ -212,6 +203,8 @@ async function publicarCollab(interaction) {
       autorId: interaction.user.id,
       canalId: canal.id,
       arquivoNome: arquivo.name,
+      email,
+      autorizacaoAceitaEm: new Date().toISOString(),
     });
 
     return interaction.editReply(
