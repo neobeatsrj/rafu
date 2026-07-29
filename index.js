@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const { Client, GatewayIntentBits } = require("discord.js");
 const anunciarCommand = require("./commands/anunciar");
+const guiaProdutoresCommand = require("./commands/guiaProdutores");
 const interactionCreate = require("./events/interactionCreate");
 const { registrarEntrada, registrarSaida } = require("./events/memberLog");
 const { iniciarMonitoramentoTwitch } = require("./services/twitch");
@@ -21,10 +22,13 @@ client.once("clientReady", async () => {
   console.log(`✅ ${client.user.tag} está online!`);
 
   try {
-    await client.application.commands.set([anunciarCommand.data.toJSON()]);
-    console.log("✅ Comando /anunciar registrado!");
+    await client.application.commands.set([
+      anunciarCommand.data.toJSON(),
+      guiaProdutoresCommand.data.toJSON(),
+    ]);
+    console.log("✅ Comandos /anunciar e /guia-produtores registrados!");
   } catch (erro) {
-    console.error("❌ Não foi possível registrar o comando /anunciar:", erro);
+    console.error("❌ Não foi possível registrar os comandos:", erro);
   }
 
   await iniciarMonitoramentoTwitch(client);

@@ -10,6 +10,7 @@ const {
   TextInputStyle,
 } = require("discord.js");
 const anunciarCommand = require("../commands/anunciar");
+const guiaProdutoresCommand = require("../commands/guiaProdutores");
 const { buscarPreviewDoLink } = require("../services/linkPreview");
 const { podeAnunciar } = require("../utils/permissions");
 
@@ -408,10 +409,22 @@ async function publicar(interaction, id) {
 
 module.exports = async function interactionCreate(interaction) {
   if (interaction.isChatInputCommand()) {
-    if (interaction.commandName !== anunciarCommand.data.name) return;
+    const comandoConhecido =
+      interaction.commandName === anunciarCommand.data.name ||
+      interaction.commandName === guiaProdutoresCommand.data.name;
+
+    if (!comandoConhecido) return;
     if (!podeAnunciar(interaction)) return responderSemPermissao(interaction);
 
-    return anunciarCommand.execute(interaction);
+    if (interaction.commandName === anunciarCommand.data.name) {
+      return anunciarCommand.execute(interaction);
+    }
+
+    if (interaction.commandName === guiaProdutoresCommand.data.name) {
+      return guiaProdutoresCommand.execute(interaction);
+    }
+
+    return;
   }
 
   if (interaction.isStringSelectMenu() && interaction.customId === "anunciar:tipo") {
