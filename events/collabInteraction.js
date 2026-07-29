@@ -617,7 +617,7 @@ async function publicarCollab(interaction) {
                 autor: interaction.user,
                 titulo,
                 arquivoNome: arquivo.name,
-                messageId: "pendente",
+                messageId: "auto",
                 quantidade: 0,
                 playerUrl,
                 imagemUrl: "attachment://arquivo-collab.png",
@@ -635,20 +635,6 @@ async function publicarCollab(interaction) {
           const imagemPublicaUrl = mensagem.attachments.find(
             (anexo) => anexo.name === "arquivo-collab.png"
           )?.url;
-
-          await mensagem.edit({
-            components: [
-              montarCollabPublica({
-                autor: interaction.user,
-                titulo,
-                arquivoNome: arquivo.name,
-                messageId: mensagem.id,
-                quantidade: 0,
-                playerUrl,
-                imagemUrl: imagemPublicaUrl,
-              }),
-            ],
-          });
 
           await registrarCollab(mensagem.id, {
             autorId: interaction.user.id,
@@ -717,7 +703,11 @@ async function demonstrarInteresse(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const messageId = interaction.customId.split(":")[2];
+    const idDoBotao = interaction.customId.split(":")[2];
+    const messageId =
+      !idDoBotao || idDoBotao === "auto" || idDoBotao === "pendente"
+        ? interaction.message.id
+        : idDoBotao;
     const resultado = await registrarInteressado(
       messageId,
       interaction.user.id
