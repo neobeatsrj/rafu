@@ -3,6 +3,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
   CheckboxBuilder,
+  CheckboxGroupBuilder,
+  CheckboxGroupOptionBuilder,
   EmbedBuilder,
   FileUploadBuilder,
   LabelBuilder,
@@ -18,6 +20,29 @@ const {
 } = require("../services/collabStore");
 
 const CHAT_PRODUCAO_CHANNEL_ID = "1531680489579217026";
+const DESTINOS = {
+  comunidade: {
+    canalId: CHAT_PRODUCAO_CHANNEL_ID,
+    nome: "Comunidade / procurar collab",
+    emoji: "💬",
+    publico: true,
+  },
+  vault: {
+    canalId: "1531840072255799327",
+    nome: "Vault do Neo Beats",
+    emoji: "🔒",
+  },
+  the_box: {
+    canalId: "1531840146692112635",
+    nome: "Projetos da The Box",
+    emoji: "📦",
+  },
+  rede: {
+    canalId: "1531840177360736256",
+    nome: "Rede de produtores",
+    emoji: "🌟",
+  },
+};
 const EXTENSOES_PERMITIDAS = new Set([
   "aif",
   "aiff",
@@ -70,6 +95,29 @@ function montarFormulario() {
     .setMaxLength(254)
     .setRequired(true);
 
+  const destinos = new CheckboxGroupBuilder()
+    .setCustomId("collab_destinos")
+    .setMinValues(1)
+    .setMaxValues(4)
+    .addOptions(
+      new CheckboxGroupOptionBuilder()
+        .setLabel("Comunidade / procurar collab")
+        .setDescription("Publica no chat para outros membros colaborarem.")
+        .setValue("comunidade"),
+      new CheckboxGroupOptionBuilder()
+        .setLabel("Vault do Neo Beats")
+        .setDescription("Guarda para avaliação do Neo e oportunidades futuras.")
+        .setValue("vault"),
+      new CheckboxGroupOptionBuilder()
+        .setLabel("Projetos da The Box")
+        .setDescription("Considera a ideia para possíveis projetos da The Box.")
+        .setValue("the_box"),
+      new CheckboxGroupOptionBuilder()
+        .setLabel("Rede de produtores")
+        .setDescription("Autoriza apresentar a produtores selecionados.")
+        .setValue("rede")
+    );
+
   const autorizacao = new CheckboxBuilder()
     .setCustomId("collab_autorizacao")
     .setDefault(false);
@@ -79,6 +127,10 @@ function montarFormulario() {
       .setLabel("Arquivo")
       .setDescription("O nome do arquivo será usado como título.")
       .setFileUploadComponent(arquivo),
+    new LabelBuilder()
+      .setLabel("Onde você quer enviar?")
+      .setDescription("Escolha uma ou mais opções.")
+      .setCheckboxGroupComponent(destinos),
     new LabelBuilder()
       .setLabel("E-mail para contato")
       .setDescription("Usaremos somente se houver interesse no material.")
@@ -136,6 +188,50 @@ function montarEmbed({ autor, titulo }) {
     });
 }
 
+function montarEmbedPrivado({
+  autor,
+  titulo,
+  arquivoNome,
+  email,
+  destinosSelecionados,
+}) {
+  const nomesDosDestinos = destinosSelecionados
+    .map((destino) => {
+      const dados = DESTINOS[destino];
+      return `${dados.emoji} ${dados.nome}`;
+    })
+    .join("\n");
+
+  return new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setAuthor({
+      name: autor.displayName,
+      iconURL: autor.displayAvatarURL(),
+    })
+    .setTitle(`📥 ${titulo}`)
+    .setDescription(
+      "Material enviado para avaliação. O autor aceitou a autorização de armazenamento e encaminhamento."
+    )
+    .addFields(
+      {
+        name: "Autor",
+        value: `${autor} — ID: \`${autor.id}\``,
+      },
+      {
+        name: "E-mail para contato",
+        value: `\`${email}\``,
+      },
+      {
+        name: "Arquivo",
+        value: `\`${arquivoNome}\``,
+      },
+      {
+        name: "Destinos autorizados",
+        value: nomesDosDestinos,
+      }
+    );
+}
+
 async function abrirFormulario(interaction) {
   return interaction.showModal(montarFormulario());
 }
@@ -161,6 +257,9 @@ async function publicarCollab(interaction) {
       .trim()
       .toLowerCase();
     const autorizou = interaction.fields.getCheckbox("collab_autorizacao");
+    const destinosSelecionados = [
+      ...interaction.fields.getCheckboxGroup("collab_destinos"),
+    ].filter((destino) => DESTINOS[destino]);
 
     if (!emailValido(email)) {
       return interaction.editReply(
@@ -174,42 +273,91 @@ async function publicarCollab(interaction) {
       );
     }
 
-    const canal = await interaction.client.channels.fetch(
-      CHAT_PRODUCAO_CHANNEL_ID
-    );
-
-    if (!canal || !canal.isTextBased()) {
-      throw new Error("O canal de produção não foi encontrado.");
+    if (destinosSelecionados.length === 0) {
+      return interaction.editReply(
+        "❌ Escolha pelo menos um destino para o material."
+      );
     }
 
     const titulo = tituloDoArquivo(arquivo.name) || "Nova ideia";
+    const enviados = [];
+    const falhas = [];
 
-    const mensagem = await canal.send({
-      content: `${interaction.user} está procurando uma collab!`,
-      embeds: [
-        montarEmbed({
-          autor: interaction.user,
-          titulo,
-        }),
-      ],
-      files: [{ attachment: arquivo.url, name: arquivo.name }],
-    });
+    for (const destinoSelecionado of destinosSelecionados) {
+      const destino = DESTINOS[destinoSelecionado];
 
-    await mensagem.edit({
-      components: [montarBotaoDeInteresse(mensagem.id, 0)],
-    });
+      try {
+        const canal = await interaction.client.channels.fetch(destino.canalId);
 
-    await registrarCollab(mensagem.id, {
-      autorId: interaction.user.id,
-      canalId: canal.id,
-      arquivoNome: arquivo.name,
-      email,
-      autorizacaoAceitaEm: new Date().toISOString(),
-    });
+        if (!canal || !canal.isTextBased()) {
+          throw new Error("Canal não encontrado ou incompatível.");
+        }
 
-    return interaction.editReply(
-      `✅ Sua collab foi publicada em <#${CHAT_PRODUCAO_CHANNEL_ID}>.\n${mensagem.url}`
-    );
+        if (destino.publico) {
+          const mensagem = await canal.send({
+            content: `${interaction.user} está procurando uma collab!`,
+            embeds: [
+              montarEmbed({
+                autor: interaction.user,
+                titulo,
+              }),
+            ],
+            files: [{ attachment: arquivo.url, name: arquivo.name }],
+          });
+
+          await mensagem.edit({
+            components: [montarBotaoDeInteresse(mensagem.id, 0)],
+          });
+
+          await registrarCollab(mensagem.id, {
+            autorId: interaction.user.id,
+            canalId: canal.id,
+            arquivoNome: arquivo.name,
+            email,
+            destinos: destinosSelecionados,
+            autorizacaoAceitaEm: new Date().toISOString(),
+          });
+        } else {
+          await canal.send({
+            content: `Novo material enviado por ${interaction.user}.`,
+            embeds: [
+              montarEmbedPrivado({
+                autor: interaction.user,
+                titulo,
+                arquivoNome: arquivo.name,
+                email,
+                destinosSelecionados,
+              }),
+            ],
+            files: [{ attachment: arquivo.url, name: arquivo.name }],
+          });
+        }
+
+        enviados.push(`${destino.emoji} <#${destino.canalId}>`);
+      } catch (erroDoDestino) {
+        console.error(
+          `❌ Falha ao enviar collab para ${destino.nome}:`,
+          erroDoDestino
+        );
+        falhas.push(`${destino.emoji} ${destino.nome}`);
+      }
+    }
+
+    if (enviados.length === 0) {
+      throw new Error("Nenhum dos destinos selecionados recebeu o material.");
+    }
+
+    let resposta =
+      `✅ Material enviado para:\n${enviados.map((item) => `• ${item}`).join("\n")}`;
+
+    if (falhas.length > 0) {
+      resposta +=
+        `\n\n⚠️ Não consegui enviar para:\n` +
+        falhas.map((item) => `• ${item}`).join("\n") +
+        "\nAvise a Staff para conferir as permissões desses canais.";
+    }
+
+    return interaction.editReply(resposta);
   } catch (erro) {
     console.error("❌ Não foi possível publicar a collab:", erro);
 

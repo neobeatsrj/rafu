@@ -19,11 +19,11 @@ const data = new SlashCommandBuilder()
 function montarPainel() {
   const embed = new EmbedBuilder()
     .setColor(0xf1c40f)
-    .setTitle("🤝 Procurando uma collab?")
+    .setTitle("🤝 Envie sua ideia")
     .setDescription(
-      "Me envie seu sample, beat ou projeto e diga o que você procura: um produtor, um MC ou alguém para finalizar a ideia com você.\n\n" +
-        "Eu coloco sua ideia em circulação para produtores, artistas, convidados e profissionais que fazem parte ou chegam à comunidade. Conforme este espaço cresce, seu projeto pode alcançar novas conexões — inclusive produtores do mainstream que passem por aqui.\n\n" +
-        "Quem tiver interesse poderá ouvir o material e entrar em contato para colaborar.\n\n" +
+      "Me envie seu sample, beat ou projeto e escolha onde você gostaria que ele chegasse.\n\n" +
+        "Posso compartilhar sua ideia com a comunidade para encontrar uma collab, guardar no **Vault do Neo Beats** ou encaminhá-la para avaliação em projetos e oportunidades selecionadas.\n\n" +
+        "Você escolhe os destinos. Eu organizo o envio.\n\n" +
         "Clique abaixo para começar."
     );
 
