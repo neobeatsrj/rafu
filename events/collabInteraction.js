@@ -183,6 +183,60 @@ function montarFormularioAutorizacao() {
   return modal;
 }
 
+function montarFormularioTitulo(tituloAtual) {
+  const modal = new ModalBuilder()
+    .setCustomId("collab:titulo")
+    .setTitle("Editar título");
+
+  const titulo = new TextInputBuilder()
+    .setCustomId("collab_titulo")
+    .setLabel("Título da collab")
+    .setStyle(TextInputStyle.Short)
+    .setValue(tituloAtual)
+    .setPlaceholder("Dê um nome curto para sua ideia")
+    .setMinLength(1)
+    .setMaxLength(100)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(titulo)
+  );
+
+  return modal;
+}
+
+function montarResumoDoMaterial(rascunho) {
+  const nomesDosDestinos = rascunho.destinosSelecionados
+    .map((destino) => {
+      const dados = DESTINOS[destino];
+      return `• ${dados.emoji} ${dados.nome}`;
+    })
+    .join("\n");
+
+  const acoes = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("collab:editar-titulo")
+      .setLabel("Editar título")
+      .setEmoji("✏️")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("collab:continuar")
+      .setLabel("Continuar envio")
+      .setEmoji("➡️")
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  return {
+    content:
+      `✅ **Material preparado**\n` +
+      `**Título:** ${rascunho.titulo}\n` +
+      `Arquivo: \`${rascunho.arquivo.name}\`\n\n` +
+      `**Destinos escolhidos:**\n${nomesDosDestinos}\n\n` +
+      "Confira o título antes de continuar. Depois, informe seu contato e aceite a autorização.",
+    components: [acoes],
+  };
+}
+
 function montarBotoesDaCollab(messageId, quantidade, playerUrl) {
   const label =
     quantidade === 0
@@ -349,38 +403,18 @@ async function prepararCollab(interaction) {
       await respostaArquivo.arrayBuffer()
     );
 
-    rascunhos.set(interaction.user.id, {
+    const rascunho = {
       arquivo: {
         name: arquivo.name,
         buffer: arquivoBuffer,
       },
+      titulo: tituloDoArquivo(arquivo.name) || "Nova ideia",
       destinosSelecionados,
       criadoEm: Date.now(),
-    });
+    };
 
-    const nomesDosDestinos = destinosSelecionados
-      .map((destino) => {
-        const dados = DESTINOS[destino];
-        return `• ${dados.emoji} ${dados.nome}`;
-      })
-      .join("\n");
-
-    const continuar = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("collab:continuar")
-        .setLabel("Continuar envio")
-        .setEmoji("➡️")
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    return interaction.editReply({
-      content:
-        `✅ **Material preparado**\n` +
-        `Arquivo: \`${arquivo.name}\`\n\n` +
-        `**Destinos escolhidos:**\n${nomesDosDestinos}\n\n` +
-        "Agora informe seu contato e aceite a autorização.",
-      components: [continuar],
-    });
+    rascunhos.set(interaction.user.id, rascunho);
+    return interaction.editReply(montarResumoDoMaterial(rascunho));
   } catch (erro) {
     console.error("❌ Não foi possível preparar a collab:", erro);
 
@@ -388,6 +422,48 @@ async function prepararCollab(interaction) {
       "❌ Não consegui preparar seu material. Tente novamente ou avise a Staff."
     );
   }
+}
+
+async function abrirEditorTitulo(interaction) {
+  const rascunho = obterRascunho(interaction.user.id);
+
+  if (!rascunho) {
+    return interaction.reply({
+      content:
+        "⌛ Este envio expirou. Clique novamente em **Enviar minha collab**.",
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  return interaction.showModal(montarFormularioTitulo(rascunho.titulo));
+}
+
+async function salvarTitulo(interaction) {
+  const rascunho = obterRascunho(interaction.user.id);
+
+  if (!rascunho) {
+    return interaction.reply({
+      content:
+        "⌛ Este envio expirou. Clique novamente em **Enviar minha collab**.",
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  const titulo = interaction.fields
+    .getTextInputValue("collab_titulo")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 100);
+
+  if (!titulo) {
+    return interaction.reply({
+      content: "❌ O título não pode ficar vazio.",
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  rascunho.titulo = titulo;
+  return interaction.update(montarResumoDoMaterial(rascunho));
 }
 
 async function abrirFormularioAutorizacao(interaction) {
@@ -433,7 +509,8 @@ async function publicarCollab(interaction) {
       );
     }
 
-    const titulo = tituloDoArquivo(arquivo.name) || "Nova ideia";
+    const titulo =
+      rascunho.titulo || tituloDoArquivo(arquivo.name) || "Nova ideia";
     const enviados = [];
     const falhas = [];
     let arquivoPublicoUrl = null;
@@ -685,6 +762,22 @@ module.exports = async function collabInteraction(interaction) {
     interaction.customId === "collab:material"
   ) {
     await prepararCollab(interaction);
+    return true;
+  }
+
+  if (
+    interaction.isButton() &&
+    interaction.customId === "collab:editar-titulo"
+  ) {
+    await abrirEditorTitulo(interaction);
+    return true;
+  }
+
+  if (
+    interaction.isModalSubmit() &&
+    interaction.customId === "collab:titulo"
+  ) {
+    await salvarTitulo(interaction);
     return true;
   }
 
