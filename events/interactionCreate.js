@@ -11,6 +11,8 @@ const {
 } = require("discord.js");
 const anunciarCommand = require("../commands/anunciar");
 const guiaProdutoresCommand = require("../commands/guiaProdutores");
+const painelCollabsCommand = require("../commands/painelCollabs");
+const collabInteraction = require("./collabInteraction");
 const { buscarPreviewDoLink } = require("../services/linkPreview");
 const { podeAnunciar } = require("../utils/permissions");
 
@@ -408,10 +410,13 @@ async function publicar(interaction, id) {
 }
 
 module.exports = async function interactionCreate(interaction) {
+  if (await collabInteraction(interaction)) return;
+
   if (interaction.isChatInputCommand()) {
     const comandoConhecido =
       interaction.commandName === anunciarCommand.data.name ||
-      interaction.commandName === guiaProdutoresCommand.data.name;
+      interaction.commandName === guiaProdutoresCommand.data.name ||
+      interaction.commandName === painelCollabsCommand.data.name;
 
     if (!comandoConhecido) return;
     if (!podeAnunciar(interaction)) return responderSemPermissao(interaction);
@@ -422,6 +427,10 @@ module.exports = async function interactionCreate(interaction) {
 
     if (interaction.commandName === guiaProdutoresCommand.data.name) {
       return guiaProdutoresCommand.execute(interaction);
+    }
+
+    if (interaction.commandName === painelCollabsCommand.data.name) {
+      return painelCollabsCommand.execute(interaction);
     }
 
     return;
