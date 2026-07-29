@@ -22,14 +22,15 @@ function montarPainel() {
     .setTitle("🤝 Procurando uma collab?")
     .setDescription(
       "Me envie seu sample, beat ou projeto e diga o que você procura: um produtor, um MC ou alguém para finalizar a ideia com você.\n\n" +
-        "Eu organizo as informações e compartilho sua proposta com a comunidade. Quem tiver interesse poderá ouvir e entrar em contato para colaborar.\n\n" +
+        "Eu coloco sua ideia em circulação para produtores, artistas, convidados e profissionais que fazem parte ou chegam à comunidade. Conforme este espaço cresce, seu projeto pode alcançar novas conexões — inclusive produtores do mainstream que passem por aqui.\n\n" +
+        "Quem tiver interesse poderá ouvir o material e entrar em contato para colaborar.\n\n" +
         "Clique abaixo para começar."
     );
 
   const botoes = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(PAINEL_CUSTOM_ID)
-      .setLabel("Enviar projeto")
+      .setLabel("Enviar minha collab")
       .setEmoji("📤")
       .setStyle(ButtonStyle.Primary)
   );
@@ -62,12 +63,14 @@ async function execute(interaction) {
     );
 
     if (painelExistente) {
+      await painelExistente.edit(montarPainel());
+
       if (!painelExistente.pinned) {
         await painelExistente.pin("Painel de collabs da Rafu");
       }
 
       return interaction.editReply(
-        `⚠️ O painel já existe e está fixado.\n${painelExistente.url}`
+        `✅ Painel de collabs atualizado e fixado.\n${painelExistente.url}`
       );
     }
 
