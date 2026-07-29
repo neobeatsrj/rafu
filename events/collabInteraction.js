@@ -235,7 +235,9 @@ function montarResumoDoMaterial(rascunho) {
         .setAccentColor(0x5865f2)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `## ✅ Material preparado\n**Título:** ${rascunho.titulo}`
+            `## ✅ Material preparado\n\n` +
+              `**Título:**\n` +
+              `## ${rascunho.titulo}`
           )
         )
         .addActionRowComponents(editarTitulo)
