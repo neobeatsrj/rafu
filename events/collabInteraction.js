@@ -9,9 +9,10 @@ const {
   EmbedBuilder,
   FileUploadBuilder,
   LabelBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   MessageFlags,
   ModalBuilder,
-  SectionBuilder,
   TextInputBuilder,
   TextInputStyle,
   TextDisplayBuilder,
@@ -20,6 +21,9 @@ const {
   registrarCollab,
   registrarInteressado,
 } = require("../services/collabStore");
+const {
+  gerarImagemDoArquivo,
+} = require("../services/collabCardImage");
 
 const CHAT_PRODUCAO_CHANNEL_ID = "1531680489579217026";
 const DESTINOS = {
@@ -253,19 +257,32 @@ function montarResumoDoMaterial(rascunho) {
   };
 }
 
-function montarBotaoColaborar(messageId, quantidade) {
+function montarBotoesDaCollab(messageId, quantidade, playerUrl) {
   const label =
     quantidade === 0
       ? "Quero colaborar"
       : `Quero colaborar • ${quantidade}`;
 
-  return new ActionRowBuilder().addComponents(
+  const botoes = [];
+
+  if (playerUrl) {
+    botoes.push(
+      new ButtonBuilder()
+        .setEmoji("▶️")
+        .setStyle(ButtonStyle.Link)
+        .setURL(playerUrl)
+    );
+  }
+
+  botoes.push(
     new ButtonBuilder()
       .setCustomId(`collab:interesse:${messageId}`)
       .setLabel(label)
       .setEmoji("🤝")
       .setStyle(ButtonStyle.Success)
   );
+
+  return new ActionRowBuilder().addComponents(botoes);
 }
 
 function montarCollabPublica({
@@ -275,6 +292,7 @@ function montarCollabPublica({
   messageId,
   quantidade,
   playerUrl,
+  imagemUrl,
 }) {
   const container = new ContainerBuilder()
     .setAccentColor(0xf1c40f)
@@ -291,18 +309,13 @@ function montarCollabPublica({
       )
     );
 
-  if (playerUrl) {
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`### 🎵 ${arquivoNome}`)
-        )
-        .setButtonAccessory(
-          new ButtonBuilder()
-            .setEmoji("▶️")
-            .setStyle(ButtonStyle.Link)
-            .setURL(playerUrl)
-        )
+  if (imagemUrl) {
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder()
+          .setURL(imagemUrl)
+          .setDescription(`Arquivo de áudio: ${arquivoNome}`)
+      )
     );
   } else {
     container.addTextDisplayComponents(
@@ -311,7 +324,7 @@ function montarCollabPublica({
   }
 
   return container.addActionRowComponents(
-    montarBotaoColaborar(messageId, quantidade)
+    montarBotoesDaCollab(messageId, quantidade, playerUrl)
   );
 }
 
@@ -542,6 +555,7 @@ async function publicarCollab(interaction) {
     const falhas = [];
     let arquivoPublicoUrl = null;
     let playerUrl = null;
+    let imagemDoArquivo = null;
 
     if (destinosSelecionados.includes("comunidade")) {
       const canalDeArmazenamento = await interaction.client.channels.fetch(
@@ -574,6 +588,11 @@ async function publicarCollab(interaction) {
           "O endereço da prévia ultrapassou o limite permitido pelo Discord."
         );
       }
+
+      imagemDoArquivo = await gerarImagemDoArquivo({
+        nome: arquivo.name,
+        tamanho: arquivo.buffer.length,
+      });
     }
 
     for (const destinoSelecionado of destinosSelecionados) {
@@ -596,10 +615,21 @@ async function publicarCollab(interaction) {
                 messageId: "pendente",
                 quantidade: 0,
                 playerUrl,
+                imagemUrl: "attachment://arquivo-collab.png",
               }),
+            ],
+            files: [
+              {
+                attachment: imagemDoArquivo,
+                name: "arquivo-collab.png",
+              },
             ],
             flags: MessageFlags.IsComponentsV2,
           });
+
+          const imagemPublicaUrl = mensagem.attachments.find(
+            (anexo) => anexo.name === "arquivo-collab.png"
+          )?.url;
 
           await mensagem.edit({
             components: [
@@ -610,6 +640,7 @@ async function publicarCollab(interaction) {
                 messageId: mensagem.id,
                 quantidade: 0,
                 playerUrl,
+                imagemUrl: imagemPublicaUrl,
               }),
             ],
           });
@@ -622,6 +653,7 @@ async function publicarCollab(interaction) {
             email,
             arquivoUrl: arquivoPublicoUrl,
             playerUrl,
+            imagemUrl: imagemPublicaUrl,
             destinos: destinosSelecionados,
             autorizacaoAceitaEm: new Date().toISOString(),
           });
@@ -744,6 +776,11 @@ async function demonstrarInteresse(interaction) {
             messageId,
             quantidade: resultado.quantidade,
             playerUrl: resultado.collab.playerUrl,
+            imagemUrl:
+              resultado.collab.imagemUrl ||
+              mensagem.attachments.find(
+                (anexo) => anexo.name === "arquivo-collab.png"
+              )?.url,
           }),
         ],
       });
