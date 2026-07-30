@@ -269,6 +269,7 @@ function montarBotoesDaCollab(messageId, quantidade, playerUrl) {
     botoes.push(
       new ButtonBuilder()
         .setEmoji("▶️")
+        .setLabel("Reproduzir")
         .setStyle(ButtonStyle.Link)
         .setURL(playerUrl)
     );

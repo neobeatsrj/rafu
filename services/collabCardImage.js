@@ -9,14 +9,17 @@ function escaparXml(valor) {
     .replaceAll("'", "&apos;");
 }
 
-function limitarNome(nome, limite = 54) {
+function limitarNome(nome, limite = 38) {
   if (nome.length <= limite) return nome;
 
   const ultimoPonto = nome.lastIndexOf(".");
   const extensao = ultimoPonto > 0 ? nome.slice(ultimoPonto) : "";
   const espacoDisponivel = Math.max(12, limite - extensao.length - 1);
+  const inicio = nome
+    .slice(0, espacoDisponivel)
+    .replace(/[._\-\s]+$/g, "");
 
-  return `${nome.slice(0, espacoDisponivel)}…${extensao}`;
+  return `${inicio}…${extensao}`;
 }
 
 function formatarTamanho(bytes) {
@@ -39,24 +42,23 @@ async function gerarImagemDoArquivo({ nome, tamanho }) {
   const tamanhoSeguro = escaparXml(formatarTamanho(tamanho));
 
   const svg = `
-    <svg width="900" height="180" viewBox="0 0 900 180"
+    <svg width="900" height="130" viewBox="0 0 900 130"
       xmlns="http://www.w3.org/2000/svg">
-      <rect width="900" height="180" rx="24" fill="#232428"/>
-      <rect x="1.5" y="1.5" width="897" height="177" rx="22.5"
+      <rect width="900" height="130" rx="18" fill="#232428"/>
+      <rect x="1.5" y="1.5" width="897" height="127" rx="16.5"
         fill="none" stroke="#3f4147" stroke-width="3"/>
 
-      <path d="M48 32h72l32 32v84H48z" fill="#c9c8ff"/>
-      <path d="M120 32v32h32z" fill="#9e9bf5"/>
-      <circle cx="90" cy="105" r="23" fill="#5865f2"/>
-      <path d="M78 99h9l13-10v32l-13-10h-9z" fill="#ffffff"/>
-      <path d="M106 96c7 6 7 13 0 19" fill="none" stroke="#ffffff"
+      <path d="M38 22h54l23 23v64H38z" fill="#c9c8ff"/>
+      <path d="M92 22v23h23z" fill="#9e9bf5"/>
+      <path d="M53 62h12l17-13v34L65 70H53z" fill="#5865f2"/>
+      <path d="M88 57c8 7 8 18 0 25" fill="none" stroke="#5865f2"
         stroke-width="5" stroke-linecap="round"/>
 
-      <text x="184" y="83" fill="#5da8ff"
-        font-family="Arial, Helvetica, sans-serif" font-size="35"
+      <text x="145" y="61" fill="#5da8ff"
+        font-family="Arial, Helvetica, sans-serif" font-size="27"
         font-weight="600">${nomeSeguro}</text>
-      <text x="184" y="127" fill="#aeb1b7"
-        font-family="Arial, Helvetica, sans-serif" font-size="27">
+      <text x="145" y="96" fill="#aeb1b7"
+        font-family="Arial, Helvetica, sans-serif" font-size="23">
         ${tamanhoSeguro}
       </text>
     </svg>
