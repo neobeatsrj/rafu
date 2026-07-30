@@ -317,20 +317,9 @@ function montarCollabPublica({
     );
   }
 
-  return container
-    .addActionRowComponents(
-      montarBotoesDaCollab(messageId, quantidade, playerUrl)
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        "Este produtor está aberto a novas colaborações.\n" +
-          `**${quantidade} ${
-            quantidade === 1
-              ? "pessoa quer colaborar"
-              : "pessoas querem colaborar"
-          }**`
-      )
-    );
+  return container.addActionRowComponents(
+    montarBotoesDaCollab(messageId, quantidade, playerUrl)
+  );
 }
 
 function montarPlayerUrl({ arquivoUrl, titulo, autor }) {
@@ -648,6 +637,10 @@ async function publicarCollab(interaction) {
             destinos: destinosSelecionados,
             autorizacaoAceitaEm: new Date().toISOString(),
           });
+
+          await Promise.allSettled(
+            ["🔥", "👌", "🎧"].map((emoji) => mensagem.react(emoji))
+          );
         } else {
           await canal.send({
             content: `Novo material enviado por ${interaction.user}.`,
