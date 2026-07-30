@@ -550,6 +550,7 @@ async function publicarCollab(interaction) {
     let arquivoPublicoUrl = null;
     let playerUrl = null;
     let imagemDoArquivo = null;
+    let vaultJaEnviado = false;
 
     if (destinosSelecionados.includes("comunidade")) {
       const canalDeArmazenamento = await interaction.client.channels.fetch(
@@ -561,9 +562,19 @@ async function publicarCollab(interaction) {
       }
 
       const mensagemDeArmazenamento = await canalDeArmazenamento.send({
-        content: `🔐 Arquivo da collab pública enviado por ${interaction.user}.`,
+        content: `Novo material enviado por ${interaction.user}.`,
+        embeds: [
+          montarEmbedPrivado({
+            autor: interaction.user,
+            titulo,
+            arquivoNome: arquivo.name,
+            email,
+            destinosSelecionados,
+          }),
+        ],
         files: [{ attachment: arquivo.buffer, name: arquivo.name }],
       });
+      vaultJaEnviado = true;
 
       arquivoPublicoUrl = mensagemDeArmazenamento.attachments.first()?.url;
 
@@ -591,6 +602,11 @@ async function publicarCollab(interaction) {
 
     for (const destinoSelecionado of destinosSelecionados) {
       const destino = DESTINOS[destinoSelecionado];
+
+      if (destinoSelecionado === "vault" && vaultJaEnviado) {
+        enviados.push(`${destino.emoji} <#${destino.canalId}>`);
+        continue;
+      }
 
       try {
         const canal = await interaction.client.channels.fetch(destino.canalId);
