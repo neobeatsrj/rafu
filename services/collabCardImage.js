@@ -57,10 +57,10 @@ async function gerarImagemDoArquivo({ nome, tamanho }) {
       </g>
 
       <text x="76" y="35" fill="#5da8ff"
-        font-family="Arial, Helvetica, sans-serif" font-size="17"
+        font-family="Arial, Helvetica, sans-serif" font-size="14.5"
         font-weight="600">${nomeSeguro}</text>
       <text x="76" y="56" fill="#aeb1b7"
-        font-family="Arial, Helvetica, sans-serif" font-size="13">
+        font-family="Arial, Helvetica, sans-serif" font-size="11">
         ${tamanhoSeguro}
       </text>
     </svg>

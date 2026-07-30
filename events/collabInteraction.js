@@ -118,13 +118,13 @@ function montarFormularioMaterial() {
       new CheckboxGroupOptionBuilder()
         .setLabel("🤝 Comunidade de Collabs")
         .setDescription(
-          "Compartilhe sua música, receba feedback e encontre pessoas para colaborar no seu projeto."
+          "Compartilhe sua ideia, receba feedback e encontre pessoas para colaborar."
         )
         .setValue("comunidade"),
       new CheckboxGroupOptionBuilder()
         .setLabel("⭐ Vault do Neo Beats")
         .setDescription(
-          "Envie seu projeto para a seleção do Neo Beats e futuras oportunidades."
+          "Envie sua ideia para o Neo Beats e participe de futuras oportunidades."
         )
         .setValue("vault"),
       new CheckboxGroupOptionBuilder()
