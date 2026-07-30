@@ -102,7 +102,7 @@ function obterRascunho(userId) {
 function montarFormularioMaterial() {
   const modal = new ModalBuilder()
     .setCustomId("collab:material")
-    .setTitle("Enviar collab • 1/2");
+    .setTitle("Publicar projeto • 1/2");
 
   const arquivo = new FileUploadBuilder()
     .setCustomId("collab_arquivo")
@@ -116,32 +116,48 @@ function montarFormularioMaterial() {
     .setMaxValues(4)
     .addOptions(
       new CheckboxGroupOptionBuilder()
-        .setLabel("Encontrar uma collab")
-        .setDescription("Compartilho com a comunidade para criarem juntos.")
+        .setLabel("🤝 Comunidade de Collabs")
+        .setDescription(
+          "Compartilhe sua música, receba feedback e encontre pessoas para colaborar no seu projeto."
+        )
         .setValue("comunidade"),
       new CheckboxGroupOptionBuilder()
-        .setLabel("Vault do Neo Beats")
-        .setDescription("Envio para a seleção do Neo e futuras oportunidades.")
+        .setLabel("⭐ Vault do Neo Beats")
+        .setDescription(
+          "Envie seu projeto para a seleção do Neo Beats e futuras oportunidades."
+        )
         .setValue("vault"),
       new CheckboxGroupOptionBuilder()
-        .setLabel("Projetos da The Box")
-        .setDescription("Coloco para avaliação em projetos da The Box.")
+        .setLabel("📦 Projetos da The Box")
+        .setDescription(
+          "Permita que sua ideia seja considerada em projetos da The Box."
+        )
         .setValue("the_box"),
       new CheckboxGroupOptionBuilder()
-        .setLabel("Conexões da indústria")
-        .setDescription("Posso apresentar a profissionais selecionados.")
+        .setLabel("🌟 Conexões da Indústria")
+        .setDescription(
+          "Seu projeto poderá ser apresentado a artistas, produtores e gravadoras em oportunidades compatíveis."
+        )
         .setValue("rede")
     );
 
   modal.addLabelComponents(
     new LabelBuilder()
       .setLabel("Arquivo")
-      .setDescription("O nome do arquivo será usado como título.")
+      .setDescription(
+        "O nome do arquivo será usado como título da publicação. Você poderá alterá-lo na próxima etapa."
+      )
       .setFileUploadComponent(arquivo),
     new LabelBuilder()
-      .setLabel("Onde sua ideia pode chegar?")
-      .setDescription("Escolha um ou mais caminhos.")
+      .setLabel("Destinos")
+      .setDescription("Escolha um ou mais destinos para o seu projeto.")
       .setCheckboxGroupComponent(destinos)
+  );
+
+  modal.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      "*Você pode selecionar mais de um destino.*"
+    )
   );
 
   return modal;
@@ -150,7 +166,7 @@ function montarFormularioMaterial() {
 function montarFormularioAutorizacao() {
   const modal = new ModalBuilder()
     .setCustomId("collab:autorizacao")
-    .setTitle("Enviar collab • 2/2");
+    .setTitle("Publicar projeto • 2/2");
 
   const email = new TextInputBuilder()
     .setCustomId("collab_email")
