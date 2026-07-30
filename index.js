@@ -7,6 +7,7 @@ const painelCollabsCommand = require("./commands/painelCollabs");
 const interactionCreate = require("./events/interactionCreate");
 const { registrarEntrada, registrarSaida } = require("./events/memberLog");
 const { iniciarMonitoramentoTwitch } = require("./services/twitch");
+const { iniciarPlayerServer } = require("./services/playerServer");
 
 const client = new Client({
   intents: [
@@ -18,6 +19,8 @@ const client = new Client({
 client.on("interactionCreate", interactionCreate);
 client.on("guildMemberAdd", registrarEntrada);
 client.on("guildMemberRemove", registrarSaida);
+
+iniciarPlayerServer();
 
 client.once("clientReady", async () => {
   console.log(`✅ ${client.user.tag} está online!`);

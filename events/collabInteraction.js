@@ -66,7 +66,9 @@ const EXTENSOES_PERMITIDAS = new Set([
   "zip",
 ]);
 const RASCUNHO_DURACAO_MS = 30 * 60 * 1000;
-const PLAYER_BASE_URL = "https://rafu-player-preview.neobeats.chatgpt.site";
+const PLAYER_BASE_URL =
+  process.env.PLAYER_BASE_URL ||
+  "https://rafu-player-preview.neobeats.chatgpt.site";
 const rascunhos = new Map();
 
 function extensaoDoArquivo(nome) {
