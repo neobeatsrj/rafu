@@ -9,7 +9,7 @@ function escaparXml(valor) {
     .replaceAll("'", "&apos;");
 }
 
-function limitarNome(nome, limite = 34) {
+function limitarNome(nome, limite = 28) {
   if (nome.length <= limite) return nome;
 
   const ultimoPonto = nome.lastIndexOf(".");
@@ -42,13 +42,13 @@ async function gerarImagemDoArquivo({ nome, tamanho }) {
   const tamanhoSeguro = escaparXml(formatarTamanho(tamanho));
 
   const svg = `
-    <svg width="720" height="112" viewBox="0 0 720 112"
+    <svg width="504" height="78" viewBox="0 0 504 78"
       xmlns="http://www.w3.org/2000/svg">
-      <rect width="720" height="112" rx="12" fill="#232428"/>
-      <rect x="1" y="1" width="718" height="110" rx="11"
-        fill="none" stroke="#3f4147" stroke-width="2"/>
+      <rect width="504" height="78" rx="9" fill="#232428"/>
+      <rect x="1" y="1" width="502" height="76" rx="8"
+        fill="none" stroke="#3f4147" stroke-width="1.5"/>
 
-      <g transform="translate(28 20)">
+      <g transform="translate(20 14) scale(.7)">
         <path d="M0 0h38l18 18v54H0z" fill="#c9c8ff"/>
         <path d="M38 0v18h18z" fill="#a7a5f5"/>
         <path d="M12 31h7l11-8v26l-11-8h-7z" fill="#5865f2"/>
@@ -56,11 +56,11 @@ async function gerarImagemDoArquivo({ nome, tamanho }) {
           stroke-width="3.5" stroke-linecap="round"/>
       </g>
 
-      <text x="108" y="49" fill="#5da8ff"
-        font-family="Arial, Helvetica, sans-serif" font-size="24"
+      <text x="76" y="35" fill="#5da8ff"
+        font-family="Arial, Helvetica, sans-serif" font-size="17"
         font-weight="600">${nomeSeguro}</text>
-      <text x="108" y="79" fill="#aeb1b7"
-        font-family="Arial, Helvetica, sans-serif" font-size="19">
+      <text x="76" y="56" fill="#aeb1b7"
+        font-family="Arial, Helvetica, sans-serif" font-size="13">
         ${tamanhoSeguro}
       </text>
     </svg>

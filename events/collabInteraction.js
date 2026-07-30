@@ -639,7 +639,7 @@ async function publicarCollab(interaction) {
           });
 
           await Promise.allSettled(
-            ["🔥", "👌", "🎧"].map((emoji) => mensagem.react(emoji))
+            ["🔥", "👌"].map((emoji) => mensagem.react(emoji))
           );
         } else {
           await canal.send({
